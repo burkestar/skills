@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "burkestar",
+  "description": "Dustin Burke's personal Claude skills marketplace.",
+  "owner": {
+    "name": "Dustin Burke",
+    "email": "dustin@datarobot.com"
+  },
+  "plugins": [
+    {
+      "name": "dustin-skills",
+      "source": "./",
+      "description": "Reusable Claude skills by Dustin Burke.",
+      "license": "Apache-2.0"
+    }
+  ]
+}

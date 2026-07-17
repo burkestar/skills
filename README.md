@@ -1,0 +1,51 @@
+# Dustin's Skills
+
+Reusable [Claude Code](https://docs.claude.com/en/docs/claude-code) skills, packaged as a plugin so I can install them anywhere with two commands instead of copying folders around.
+
+## Install
+
+Inside Claude Code, run:
+
+```
+/plugin marketplace add burkestar/skills
+/plugin install dustin-skills@burkestar
+```
+
+The first command registers this repo as a marketplace. The second installs the plugin and every skill in it. That's the whole setup. There is no single-command shortcut in Claude Code today - it's always add-marketplace then install.
+
+To update later:
+
+```
+/plugin marketplace update burkestar
+```
+
+To remove it:
+
+```
+/plugin uninstall dustin-skills@burkestar
+```
+
+## What's in here
+
+| Skill | What it does |
+| --- | --- |
+| `dustin-writing-style` | Write in Dustin Burke's voice - direct, opinionated, concrete, plainspoken. Triggers on emails, Slack, docs, commits, PRs, and anything going out under his name. |
+
+## How it's structured
+
+```
+.
+├── .claude-plugin/
+│   ├── plugin.json          # plugin manifest
+│   └── marketplace.json     # lets this repo serve as its own marketplace
+└── skills/
+    └── dustin-writing-style/
+        ├── SKILL.md
+        └── references/
+```
+
+The repo is both the marketplace and the plugin. `marketplace.json` points its one plugin at the repo root (`./`), and skills are auto-discovered from `skills/`. Adding a skill is just dropping a new folder into `skills/` - no manifest edits.
+
+## Adding a skill
+
+See [AGENTS.md](./AGENTS.md) for the checklist and conventions.

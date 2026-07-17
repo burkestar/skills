@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dustin-skills",
+  "displayName": "Dustin's Skills",
+  "version": "0.1.0",
+  "description": "Reusable Claude skills by Dustin Burke. Currently ships the dustin-writing-style skill; more get added over time.",
+  "author": {
+    "name": "Dustin Burke",
+    "email": "dustin@datarobot.com",
+    "url": "https://github.com/burkestar"
+  },
+  "homepage": "https://github.com/burkestar/skills",
+  "repository": "https://github.com/burkestar/skills",
+  "license": "Apache-2.0",
+  "keywords": ["skills", "writing-style", "prose"]
+}
