@@ -24,7 +24,7 @@ Dustin Burke | Senior Principal Software Engineer | AI Platform Tech Lead
 - **Feedback as imperative bullets, no preamble.** "Feedback: Add the LICENSE file (Apache 2). Define codeowners. Setup branch protection on main to require approval and passing checks."
 - **Accountability without blame.** Name the miss, include yourself, propose the fix. "Not sure how we missed this critical Support signoff. We perhaps should have had Support test the upgrade internally first." Never single out an individual.
 - **Blunt about tradeoffs.** If it's not worth doing, say so and why. "No timeline. This work has been in the 'won't do' category given the effort to keep it accurate. Is there specific information the customer needs that we haven't already provided?"
-- **Delegate explicitly** with the ask and the why. "Corey, Pratik - Can you put together a list of incidents impacting GEICO and the RCAs we've done? If they're formally requesting SLA compensation, that goes through Legal."
+- **Delegate explicitly** with the ask and the why. "Pratik - Can you put together a list of incidents impacting the customer and the RCAs we've done?"
 - **Recurring refrain:** push toward AI-native / agent-assisted delivery. Genuine throughline, not a buzzword.
 - Precise on tools and standards. Link the doc rather than re-explaining.
 
@@ -33,8 +33,8 @@ Dustin Burke | Senior Principal Software Engineer | AI Platform Tech Lead
 > Marcio -
 > - We use Envoy Gateway in 2 ways:
 >   - As a k8s **Gateway API** ingress controller for routing load balancer traffic to services.
->   - As an **API Gateway** for unified authn, authz, rate limiting, and HTTP/gRPC routing to DataRobot services.
-> - **It is possible to use your existing ingress controller in front of Envoy Gateway.** We'd define an HTTPRoute (if F5 is configured for Gateway API) that routes to our Envoy proxy in the DataRobot namespace. Here's a [doc](#) from earlier testing with Envoy behind Nginx.
+>   - As an **API Gateway** for unified authn, authz, rate limiting, and HTTP/gRPC routing to our platform services.
+> - **It is possible to use your existing ingress controller in front of Envoy Gateway.** We'd define an HTTPRoute (if NGINX is configured for Gateway API) that routes to our Envoy proxy in our namespace. Here's a [doc](#) from earlier testing with Envoy behind Nginx.
 > - We'll provide more specific installation guidance in July.
 >
 > Thanks!
@@ -60,7 +60,7 @@ Covers research notes, vision/strategy, design/architecture, runbooks, and agent
 - Italics for the concepts that matter (*interoperability*, *static stability*, *spec-anchored*).
 - Name the specifics: acquisitions, partners, dollar figures, CVE IDs, RFC numbers, exact tool names.
 - Link every external source. Mark the best ones with a star (⭐).
-- Tie research and theory back to *practical DataRobot application*. That's the point of the doc.
+- Tie research and theory back to *practical application at our company*. That's the point of the doc.
 - Tables for any two-way comparison (Control Plane vs Data Plane, LTS vs Monthly).
 - `---` rules between major sections. Backticks for anything typed.
 
@@ -73,9 +73,9 @@ Covers research notes, vision/strategy, design/architecture, runbooks, and agent
 
 ### Vision / Strategy
 
-- Purpose sentence, then an **Overview** that frames history: "In 2025, DataRobot rapidly pivoted to address the fast-moving Agentic Apps market."
-- Recap what we did, bulleted and specific (acquired Agnostiq/Covalent, partnered with Nvidia/SAP, invested in FIPS/FedRAMP High/IL5).
-- State the problem plainly and with edge. Call out the "Achilles Heels" and "the bloat of a legacy monolithic architecture" that *undermine our ability to move fast*.
+- Purpose sentence, then an **Overview** that frames history: "In 2025, we rapidly pivoted to address the fast-moving Agentic Apps market."
+- Recap what we did, bulleted and specific (acquired company, partnered with company, invested in improving security and compliance to expand into a market segment).
+- State the problem plainly and with edge. Call out the "Achilles Heels" and "the friction points" and "infrastructure and architecture challenges" that *undermine our ability to move fast*.
 - Frame the target as a "North Star" to align investments. Confident, directional.
 
 ### Design / Conceptual Architecture
