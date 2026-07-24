@@ -30,6 +30,7 @@ To remove it:
 | Skill | What it does |
 | --- | --- |
 | `dustin-writing-style` | Write in Dustin Burke's voice - direct, opinionated, concrete, plainspoken. Triggers on emails, Slack, docs, commits, PRs, and anything going out under his name. |
+| `personal-repo-bootstrap` | Bootstrap a new GitHub repo under the burkestar org for personal projects - repo settings, branch protection, pre-commit hooks, CI/CD, release automation, the standard docs set, and a GitHub Pages docs site. Not for work repos. |
 
 ## How it's structured
 
@@ -39,9 +40,13 @@ To remove it:
 │   ├── plugin.json          # plugin manifest
 │   └── marketplace.json     # lets this repo serve as its own marketplace
 └── skills/
-    └── dustin-writing-style/
+    ├── dustin-writing-style/
+    │   ├── SKILL.md
+    │   └── references/
+    └── personal-repo-bootstrap/
         ├── SKILL.md
-        └── references/
+        ├── references/
+        └── scripts/
 ```
 
 The repo is both the marketplace and the plugin. `marketplace.json` points its one plugin at the repo root (`./`), and skills are auto-discovered from `skills/`. Adding a skill is just dropping a new folder into `skills/` - no manifest edits.
