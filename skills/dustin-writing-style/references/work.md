@@ -1,6 +1,6 @@
 # Work Registers
 
-Two registers: **Work Email** (default) and **Work Docs** (Confluence and code artifacts). Apply the non-negotiables from SKILL.md on top of everything here.
+Two registers: **Work Email** (default) and **Work Docs** (Confluence and code artifacts).
 
 ---
 

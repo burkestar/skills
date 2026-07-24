@@ -1,6 +1,6 @@
 # Personal Registers
 
-Three registers: **Professional** (blog/essay/LinkedIn), **Reference** (learning notes/standalone docs), and **Personal** (social). Apply the non-negotiables from SKILL.md on top of everything here.
+Three registers: **Professional** (blog/essay/LinkedIn), **Reference** (learning notes/standalone docs), and **Personal** (social).
 
 ---
 
