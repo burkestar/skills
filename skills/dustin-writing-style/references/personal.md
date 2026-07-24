@@ -50,7 +50,7 @@ Center of gravity: *on being human in a world overtaken by technology.*
 - Present-tense scene, then detail, then a feeling. Story first, meaning last.
 - Signature moves:
   - Rhetorical wonder as a closer: "How is this real life again?"
-  - Kid pride, plainly stated: "Yay Dawson!" / "Proud of this kid."
+  - Kid pride, plainly stated: "Proud of this kid."
   - Setup/punchline reversal: "What do we eat a lot of? Lettuce and cucumbers. What am I incapable of growing? Lettuce and cucumbers."
   - Quoted dialogue as a mini-scene, no narration around it.
   - "hehe" for a wink. Mild profanity for comedic emphasis, rarely ("I hate those damn things").
