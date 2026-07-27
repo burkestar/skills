@@ -30,6 +30,7 @@ To remove it:
 | Skill | What it does |
 | --- | --- |
 | `architecture-diagram` | Build and verify an interactive single-file HTML architecture blueprint for one or more repos - investigate with parallel agents, render boxes/arrows/drawers with a guided step tour, fact-check adversarially, deploy via GitHub Pages. |
+| `chief-of-staff` | Pull Gmail, Calendar, Drive, Google Tasks, JIRA, Confluence, and Slack into an Obsidian vault as structured markdown - daily briefings, weekly summaries, meeting prep, project status, decision logs, people dossiers. Personal workflow; fill in `references/configuration.md` before use. |
 | `dustin-writing-style` | Write in Dustin Burke's voice - direct, opinionated, concrete, plainspoken. Triggers on emails, Slack, docs, commits, PRs, and anything going out under his name. |
 | `personal-repo-bootstrap` | Bootstrap a new GitHub repo under the burkestar org for personal projects - repo settings, branch protection, pre-commit hooks, CI/CD, release automation, the standard docs set, and a GitHub Pages docs site. Not for work repos. |
 | `staff-engineer` | Review code like a skeptical staff engineer via a subagent - checks correctness, simplicity, surgical scope, and architecture, and refuses to rubber-stamp. Use after finishing a non-trivial change or for a second opinion. |
@@ -45,6 +46,9 @@ To remove it:
     ├── architecture-diagram/
     │   ├── SKILL.md
     │   └── assets/
+    ├── chief-of-staff/
+    │   ├── SKILL.md
+    │   └── references/
     ├── dustin-writing-style/
     │   ├── SKILL.md
     │   └── references/

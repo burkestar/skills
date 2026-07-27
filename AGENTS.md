@@ -27,6 +27,14 @@ This repo is one Claude Code plugin (`dustin-skills`) that also serves as its ow
 
 4. Keep `SKILL.md` focused. Push long examples, tables, and edge cases into `references/` files and pull them in only when needed. The point of the frontmatter is triggering; the point of the body is doing.
 
+5. Update the three places that list skills by hand - none of these are auto-generated from `skills/`:
+
+   - **`README.md`** - add a row to the "What's in here" table (keep it alphabetical) and add the new folder to the tree under "How it's structured".
+   - **`docs/index.html`** - add a card in the `#skills` grid, alphabetically among the existing ones. Make it a clickable `<a class="card" href="...">` (see the `chief-of-staff` card for the pattern) linking straight to the skill's `SKILL.md` on GitHub: `https://github.com/burkestar/skills/blob/main/skills/<skill-name>/SKILL.md`. Bump the skill count in the meta description and the hero `<p class="sub">` text, and add a `.card:nth-child(N)` animation-delay rule if the grid grew.
+   - **`.claude-plugin/plugin.json`** - bump `version` (semver: a new skill is a minor bump) and mention the skill in `description` if that list is still accurate.
+
+6. If the skill contains anything specific to one machine or one person's accounts (absolute paths, API instance URLs, cloud IDs, credentials), pull those into a `references/configuration.md` with `{{PLACEHOLDER}}` values instead of hardcoding them - see `skills/chief-of-staff/references/configuration.md` for the pattern. Instruct the skill to ask the user for real values when a placeholder is still unfilled.
+
 ## Rules that keep a skill correct
 
 - **`name` must be unique** across the plugin and match the directory name.

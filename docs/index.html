@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>burkestar/skills — Claude Code skill marketplace</title>
-<meta name="description" content="Dustin Burke's personal Claude Code skill marketplace: four reusable skills, installed as one plugin." />
+<meta name="description" content="Dustin Burke's personal Claude Code skill marketplace: five reusable skills, installed as one plugin." />
 <link rel="icon" href="./assets/img/favicon.png">
 <link rel="apple-touch-icon" href="./assets/img/favicon.png">
 <style>
@@ -91,6 +91,7 @@
   .card:nth-child(2){animation-delay:.08s}
   .card:nth-child(3){animation-delay:.14s}
   .card:nth-child(4){animation-delay:.2s}
+  .card:nth-child(5){animation-delay:.26s}
   @keyframes rise{to{opacity:1;transform:translateY(0)}}
   .card h3{font-family:var(--mono);font-size:16px;font-weight:600;margin:0 0 10px;color:var(--ink)}
   .card p{font-size:14px;color:var(--muted);margin:0 0 16px;line-height:1.6;font-weight:300}
@@ -98,6 +99,9 @@
     padding-top:12px;line-height:1.9}
   .triggers .k{color:var(--muted2);letter-spacing:.04em}
   .triggers .q{color:var(--accent)}
+  a.card{display:block;text-decoration:none;transition:border-color .18s ease, transform .18s ease}
+  a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  a.card:hover h3{color:var(--accent-hover)}
 
   .featured{margin-top:36px;position:relative;overflow:hidden;border-radius:14px;
     border:1px solid var(--accent-line);background:
@@ -150,7 +154,7 @@
 
     <div class="eyebrow"><span class="dot"></span>burkestar/skills · Claude Code plugin marketplace</div>
     <h1 class="prompt"><span class="sigil">$</span> ls skills/<span class="cursor" aria-hidden="true"></span></h1>
-    <p class="sub"><b>Four reusable Claude Code skills</b>, packaged as one plugin so they install anywhere in two commands instead of copied folders.</p>
+    <p class="sub"><b>Five reusable Claude Code skills</b>, packaged as one plugin so they install anywhere in two commands instead of copied folders.</p>
     <div class="install">
       <div class="lbl">Install</div>
       <pre><span class="cmd">/plugin marketplace add</span> burkestar/skills
@@ -170,6 +174,12 @@
         <p>Build and verify an interactive, single-file HTML architecture blueprint for one or more repos — boxes, arrows, drill-down drawers, and a guided tour, fact-checked adversarially against the real source.</p>
         <div class="triggers"><span class="k">triggers on</span> — <span class="q">"architecture diagram"</span>, <span class="q">"blueprint"</span>, <span class="q">"system map of repos"</span></div>
       </div>
+
+      <a class="card" href="https://github.com/burkestar/skills/blob/main/skills/chief-of-staff/SKILL.md">
+        <h3>chief-of-staff/</h3>
+        <p>Pull Gmail, Calendar, Drive, Google Tasks, JIRA, Confluence, and Slack into an Obsidian vault as structured markdown — daily briefings, weekly summaries, meeting prep, project status, decisions, people dossiers.</p>
+        <div class="triggers"><span class="k">triggers on</span> — <span class="q">"brief me"</span>, <span class="q">"what's on my plate"</span>, <span class="q">"weekly summary"</span></div>
+      </a>
 
       <div class="card">
         <h3>dustin-writing-style/</h3>
