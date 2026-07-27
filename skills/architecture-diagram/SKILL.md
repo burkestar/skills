@@ -7,7 +7,7 @@ argument-hint: "[repo|path ...]"
 
 # Architecture Blueprint
 
-Produce a single-file, zero-dependency interactive HTML architecture blueprint (boxes, arrows, click-drawers, guided step tour) and prove it correct before claiming done. Canonical reference output: `assets/template.html`.
+Produce a single-file, zero-dependency interactive HTML architecture blueprint (boxes, arrows, click-drawers, guided step tour) and prove it correct before claiming done. Canonical reference output: `assets/template.html`. Worked example built entirely from public repos (every claim traces to a public GitHub file, no internal-only sources): `assets/example-datarobot-agent-framework.html`.
 
 ## Phase 1 — Investigate
 
