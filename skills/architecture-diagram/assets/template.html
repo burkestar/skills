@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Job Runner · Job API → running pods</title>
+<style>
+  :root{
+    --bg:#000000; --ink:#ffffff; --muted:hsl(214,38%,79%); --muted2:hsl(214,20%,60%); --line:#2a2d31;
+    --ja:#38bdf8; --rs:#8b5cf6; --ra:#10b981; --rm:#f59e0b; --ext:#7c8aa8; --seam:#e63640; --plan:#e879f9;
+    --link:hsl(214,60%,75%);
+    --surface:#131417; --surface2:#1c1e22;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:Inter,"Open Sans",Roboto,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  header{padding:16px 24px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;
+    background:#000000ee;z-index:50;backdrop-filter:blur(6px)}
+  h1{font-size:17px;font-weight:600;margin:0 0 4px;letter-spacing:.2px}
+  h1 .v{color:var(--muted2);font-weight:400;font-size:13px}
+  .sub{font-size:12.5px;color:var(--muted2);max-width:1160px;line-height:1.55}
+  .sub b{color:var(--muted);font-weight:600}
+  .bar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:10px}
+  .legend{display:flex;flex-wrap:wrap;gap:13px;font-size:11.5px;color:var(--muted2)}
+  .lg{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .ln{width:22px;height:0;border-top-width:2px;border-top-style:solid;display:inline-block}
+  .zoom{margin-left:auto;display:flex;gap:6px}
+  .zoom button{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:7px;
+    padding:5px 11px;font-size:12px;cursor:pointer;transition:border-color .2s,background .2s}
+  .zoom button:hover{border-color:var(--muted2);background:#242629}
+  .hint{font-size:11.5px;color:var(--muted2);margin-left:4px}
+  .htop{display:flex;align-items:flex-start;gap:16px}
+  .htop h1{flex:1;margin-bottom:0}
+  .hcollapse{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:7px;
+    padding:5px 11px;font-size:12px;cursor:pointer;white-space:nowrap;flex:none;transition:border-color .2s,background .2s}
+  .hcollapse:hover{border-color:var(--muted2);background:#242629}
+  header.collapsed .hbody{display:none}
+  .secnav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
+  .secnav .navlabel{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-right:2px}
+  .secnav button{background:var(--surface2);color:var(--muted);border:1px solid var(--line);border-radius:7px;
+    padding:5px 11px;font-size:12px;cursor:pointer;transition:border-color .2s,background .2s,color .2s}
+  .secnav button:hover{border-color:var(--muted2);background:#242629;color:#fff}
+
+  #viewport{overflow:auto;height:calc(100vh - 168px)}
+  #stage{position:relative;transform-origin:top left}
+  svg.wires{position:absolute;inset:0;pointer-events:none;z-index:2}
+
+  .panel{position:absolute;border-radius:15px;border:1px dashed;z-index:1}
+  .panel .ptitle{position:absolute;top:-11px;left:16px;font-size:11.5px;font-weight:700;
+    letter-spacing:.4px;padding:1px 9px;border-radius:20px;background:var(--bg);text-transform:uppercase}
+  .panel .psub{position:absolute;top:-11px;right:14px;font-size:10.5px;color:var(--muted2);background:var(--bg);padding:1px 8px;border-radius:20px}
+  .subhead{position:absolute;z-index:1;font-size:10.1px;font-style:italic;color:var(--muted2);letter-spacing:.2px}
+
+  .node{position:absolute;z-index:3;border-radius:11px;padding:7px 11px;cursor:pointer;
+    background:var(--surface);border:1px solid var(--line);transition:transform .12s,box-shadow .12s,border-color .12s;
+    display:flex;flex-direction:column;justify-content:center}
+  .node:hover{transform:translateY(-2px);box-shadow:0 10px 26px #0009;border-color:var(--muted2)}
+  .node .nt{font-size:13.2px;font-weight:650;line-height:1.18}
+  .node .ns{font-size:11px;color:var(--muted2);margin-top:3px;line-height:1.2}
+  .node .tag{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:11px 0 0 11px}
+  .node.sm .nt{font-size:12.3px}
+  .node.sm .ns{font-size:10.4px;margin-top:2px}
+  .node.ghost{border-style:dashed;background:#0e0f12;opacity:.9}
+  .node.ghost .nt{color:#e9c7f5}
+  .node.ghost .tag{opacity:.5}
+
+  .wlabel{position:absolute;z-index:4;font-size:10.9px;color:var(--muted);background:#000000e6;
+    border:1px solid var(--line);border-radius:6px;padding:1.5px 6px;transform:translate(-50%,-50%);
+    white-space:nowrap;pointer-events:none}
+  .wlabel.seam{color:#ffd7d4;border-color:#7a2a26;background:#2a0d0cf0;font-weight:600}
+  .wlabel.clickable{pointer-events:auto;cursor:pointer}
+  .wlabel.clickable:hover{border-color:var(--muted2);color:#fff}
+  .node.dim,.wlabel.dim{opacity:.13;filter:saturate(.25)}
+  svg path.dim{opacity:.05}
+  .node.hl{box-shadow:0 0 0 2px #ffffff66,0 10px 26px #000a}
+  .notes .item.step{padding:5px 9px;margin:-5px -9px;border:1px solid transparent;border-radius:9px;cursor:pointer;transition:background .12s,border-color .12s}
+  .notes .item.step:hover{background:var(--surface2);border-color:var(--line)}
+  .notes .item.step.active{background:var(--surface2);border-color:var(--muted2)}
+  .pill[data-node]{cursor:pointer}
+  .pill[data-node]:hover{border-color:var(--muted2);color:#fff}
+  #tour{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;gap:7px;align-items:center;
+    background:#131417f2;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12px;box-shadow:0 8px 24px #0008}
+  #tour button{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer}
+  #tour button:hover{border-color:var(--muted2)}
+  #tour #tplay{color:var(--seam);border-color:#5a2624;font-weight:600}
+  #tour #tplay:hover{border-color:var(--seam);background:#241012}
+  #tour .tinfo{color:var(--muted);min-width:120px;text-align:center}
+  body.tourview #tour{right:470px}
+  #viewport{transition:margin-right .22s ease}
+  body.tourview #viewport{margin-right:452px}
+  #dnav{display:none;gap:8px;align-items:center;margin-top:12px}
+  body.stepdrawer #dnav{display:flex}
+  #dnav button{background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:5px 14px;font-size:12.5px;cursor:pointer}
+  #dnav button:hover{border-color:var(--muted2)}
+  #dnav .ds{color:var(--muted2);font-size:11.5px;margin-left:auto}
+
+  .notes{position:absolute;z-index:1;border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:13px 20px 15px}
+  .notes h4{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:.55px;color:var(--muted2)}
+  .notes .grid{display:flex;flex-wrap:wrap;gap:11px 30px}
+  .notes .item{font-size:11.6px;color:var(--muted);line-height:1.45;max-width:325px}
+  .notes .item b{color:#fff;font-weight:650}
+  .notes .item .k{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+
+  #scrim{position:fixed;inset:0;background:#0009;opacity:0;pointer-events:none;transition:.18s;z-index:90}
+  #scrim.on{opacity:1;pointer-events:auto}
+  #drawer{position:fixed;top:0;right:0;height:100vh;width:450px;max-width:93vw;background:#0e0f12;
+    border-left:1px solid var(--line);z-index:100;transform:translateX(102%);transition:transform .22s ease;
+    display:flex;flex-direction:column}
+  #drawer.on{transform:none}
+  #drawer .dhead{padding:18px 20px 14px;border-bottom:1px solid var(--line);position:relative}
+  #drawer .repo{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px}
+  #drawer h2{margin:9px 0 2px;font-size:18px;font-weight:600}
+  #drawer .role{font-size:12.5px;color:var(--muted2);line-height:1.5}
+  #drawer .dbody{padding:6px 20px 30px;overflow:auto}
+  #drawer .x{position:absolute;top:14px;right:16px;cursor:pointer;color:var(--muted2);font-size:20px;line-height:1;border:none;background:none}
+  #drawer .x:hover{color:#fff}
+  .sec{margin-top:15px}
+  .sec h3{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin:0 0 6px}
+  .sec ul{margin:0;padding-left:16px}
+  .sec li{font-size:12.3px;line-height:1.55;margin-bottom:3px;color:var(--muted)}
+  .sec p{font-size:12.3px;line-height:1.55;color:var(--muted);margin:0}
+  code{background:#1a1b1e;border:1px solid #2c2e33;border-radius:5px;padding:1px 5px;font-size:11.2px;color:var(--link);font-family:ui-monospace,Menlo,monospace}
+  .pill{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted);margin:2px 4px 2px 0}
+  .ghlink{color:var(--link);text-decoration:none;border-bottom:1px dotted #3d5876;font-family:ui-monospace,Menlo,monospace;font-size:.95em;transition:color .3s ease,border-color .3s ease}
+  .ghlink:hover{color:#fff;border-bottom-color:var(--link)}
+  #drepo .ghlink{font-weight:600}
+  .path{color:var(--link);font-family:ui-monospace,Menlo,monospace;font-size:11px}
+  a.path{text-decoration:none;border-bottom:1px dotted #3d5876;transition:color .3s ease}
+  a.path:hover,a.ext:hover{color:#fff}
+  a.ext{color:var(--link);text-decoration:none;border-bottom:1px dotted #3d5876;transition:color .3s ease}
+</style>
+</head>
+<body>
+<header>
+  <div class="htop">
+    <h1>Job Runner — Job API → running pods <span class="v">· flow is left → right</span></h1>
+    <button id="hcollapse" class="hcollapse" title="Collapse or expand the header">Collapse ▲</button>
+  </div>
+  <div class="hbody">
+  <div class="sub">
+    ⓪ runner-agent self-registers its runner pool + queues with run-scheduler at startup. Users ① manage <b>job definitions</b> (container specs) and <b>jobs</b> through <b>job-api</b> (via the edge gateway).
+    Each job runs as one or more <b>runs</b>: job-api ② schedules a run on <b>run-scheduler</b> (S2S),
+    which ③ hands it to <b>runner-agent</b>, which ④ writes a Kubernetes CRD; ⑤ separate in-cluster operators reconcile it into pods.
+    Status flows back via <b>run-monitor</b>, which ⑥ watches the job pods (k8s informer) and ⑦ POSTs status to job-api's callback; ⑧ clients invoke the running job through the gateway.
+    The numbered strip at the bottom narrates the full process — <b>click a step, an arrow label, or any box</b> for details, or hit <b>▶ Walk the flow</b> (bottom-right) to tour it; hovering a box traces its connections. <span style="color:var(--plan)">Fuchsia</span> = planned / on hold.
+    Every box drawer links the component's <b>GitHub repo</b> — the full list is in the <b>Code repositories</b> band (jump to it below).
+  </div>
+  <div class="bar">
+    <div class="legend">
+      <span class="lg"><span class="dot" style="background:var(--ja)"></span>job-api</span>
+      <span class="lg"><span class="dot" style="background:var(--rs)"></span>run-scheduler</span>
+      <span class="lg"><span class="dot" style="background:var(--ra)"></span>runner-agent</span>
+      <span class="lg"><span class="dot" style="background:var(--rm)"></span>run-monitor</span>
+      <span class="lg"><span class="dot" style="background:var(--ext)"></span>infra / platform</span>
+      <span class="lg"><span class="ln" style="border-color:var(--seam)"></span>cross-service call</span>
+      <span class="lg"><span class="ln" style="border-color:var(--ja);border-top-style:dashed"></span>API call / invoke</span>
+      <span class="lg"><span class="ln" style="border-color:var(--rm);border-top-style:dashed"></span>status loop</span>
+      <span class="lg"><span class="ln" style="border-color:var(--ra);border-top-style:dashed"></span>startup register</span>
+      <span class="lg"><span class="ln" style="border-color:var(--plan);border-top-style:dotted"></span>◌ planned / gap</span>
+      <span class="lg"><span class="dot" style="background:none;border:1px dashed var(--plan)"></span>⏸ on hold</span>
+    </div>
+    <div class="zoom">
+      <button id="zout">−</button><button id="zfit">Fit</button><button id="zin">+</button>
+      <span class="hint">scroll to pan</span>
+    </div>
+  </div>
+  </div>
+  <nav class="secnav" id="secnav">
+    <span class="navlabel">Jump to</span>
+    <button data-jump="top">↑ Diagram</button>
+    <button data-jump="sec-process">① End-to-end process</button>
+    <button data-jump="sec-notes">Cross-cutting facts</button>
+    <button data-jump="sec-repos">Code repositories</button>
+  </nav>
+</header>
+
+<div id="viewport"><div id="stage">
+  <svg class="wires" id="wires"></svg>
+</div></div>
+
+<div id="scrim"></div>
+<aside id="drawer">
+  <div class="dhead">
+    <button class="x" id="dx">✕</button>
+    <div class="repo" id="drepo"></div>
+    <h2 id="dtitle"></h2>
+    <div class="role" id="drole"></div>
+    <div id="dnav"><button id="dprev">‹ Prev</button><button id="dnext">Next ›</button><span class="ds" id="dstep"></span></div>
+  </div>
+  <div class="dbody" id="dbody"></div>
+</aside>
+
+<div id="tour">
+  <button id="tplay">▶ Walk the flow</button>
+  <button id="tprev" style="display:none">‹</button>
+  <span class="tinfo" id="tinfo" style="display:none"></span>
+  <button id="tnext" style="display:none">›</button>
+  <button id="texit" style="display:none">✕</button>
+</div>
+
+<script>
+const C={ja:'#38bdf8',rs:'#8b5cf6',ra:'#10b981',rm:'#f59e0b',ext:'#7c8aa8',seam:'#e63640',plan:'#e879f9',line:'#2a2d31'};
+const tint=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+const STAGE_W=2020, STAGE_H=1680;
+
+const panels=[
+  {t:'job-api', s:'Python · FastAPI · PostgreSQL', x:240, y:120, w:560, h:490, c:'ja'},
+  {t:'run-scheduler', s:'run API surface', x:840, y:120, w:380, h:380, c:'rs'},
+  {t:'runner-agent', s:'Go · CRD dispatcher', x:1258, y:120, w:330, h:380, c:'ra'},
+  {t:'Kubernetes · in-cluster', s:'', x:1626, y:120, w:370, h:300, c:'ext'},
+  {t:'Platform services', s:'', x:240, y:680, w:560, h:190, c:'ext'},
+  {t:'Status feedback loop', s:'async · no scheduler→job-api push', x:840, y:680, w:756, h:190, c:'rm'},
+];
+const subheads=[
+  {x:260, y:700, text:'consumed by job-api over internal S2S auth'},
+];
+const process={id:'sec-process', x:240, y:900, w:1756, title:'The end-to-end process', items:[
+  {step:0, c:'ra',  t:'<b>⓪ Register</b> — runner-agent boots and registers itself with run-scheduler: POST /i/api/v2/runners + …/queues ⇄ runner & queue ids come back. The scheduler can now place work on this runner.'},
+  {step:1, c:'seam',t:'<b>① Create</b> — a user (via the edge gateway, X-Org-* identity headers) creates a job definition (typically locks it; a DRAFT can back one job) and creates a job; job-api validates RBAC + resource bundle and persists to PostgreSQL.'},
+  {step:2, c:'seam',t:'<b>② Schedule</b> — job-api mints a run (SUBMITTED) and calls run-scheduler POST /runs/{id}/schedule with containers, bundle, autoscaling, labels + callback-url annotation (S2S). CPU/memory are trimmed ~10% to node-allocatable first; scaling metrics are renamed to run-scheduler\'s (unknown ones raise — no silent fallback here).'},
+  {step:3, c:'seam',t:'<b>③ Dispatch</b> — run-scheduler\'s RunScheduler picks a registered runner (runner-first) and RunnerClient POSTs /jobs/ to runner-agent; the access endpoint comes back immediately.'},
+  {step:4, c:'seam',t:'<b>④ Apply</b> — runner-agent resolves the operator type (Batch · GPU · Standard), applies the CRD, and stamps the /runs/{id} + /jobs/{id} gateway routes. runner-agent\'s job ends here.'},
+  {step:5, c:'ext', t:'<b>⑤ Reconcile</b> — the separate in-cluster operator (batch · gpu · standard) picks up the CRD and runs the job pods (autoscaled / GPU as required).'},
+  {step:6, c:'rm',  t:'<b>⑥ Watch</b> — run-monitor follows the pods directly via a k8s informer (run-scheduler never pushes status).'},
+  {step:7, c:'rm',  t:'<b>⑦ Report</b> — the monitor POSTs status envelopes to job-api\'s callback, which settles the run (WARMING→RUNNING via readiness gate) and derives job status.'},
+  {step:8, c:'ja',  t:'<b>⑧ Invoke</b> — clients hit the job through the gateway /runs/{id} route; the internal GET /jobs/{id}/endpointInfo (used by the invocation proxy) resolves the current run\'s endpoint URL — API keys are never returned by it.'},
+  {step:9, c:'plan',t:'<b>◌ Planned</b> — run-scheduler→runner heartbeat · N runs per job (same pool first, job-api activates the new one) · edge gateway + public runner/queue APIs · <b>⏸ on hold</b>: secrets-injection sidecar.'},
+]};
+const notes={id:'sec-notes', x:240, y:1185, w:1756, title:'Cross-cutting facts', items:[
+  {c:'ja', t:'<b>Data model</b> — JobDefinition (spec, DRAFT→LOCKED) → Job → Run(s). One run = one run-scheduler run = one runner-agent job = one CRD. Today 1 active run (+1 candidate during replacement) — the N-run model is in ◌ Planned below.'},
+  {c:'seam', t:'<b>Auth chain</b> — inbound: the edge gateway injects <code>X-Org-User/Tenant/Org-Id</code>; job-api→run-scheduler & monitor→job-api: internal S2S bearer; run-scheduler\'s run API enforces <code>S2SAuthVerify</code>.'},
+  {c:'rs', t:'<b>Timeouts (JOBS-1730)</b> — run-scheduler schedule timeouts now surface as <code>504</code> from job-api and the run status is reverted, so callers can retry safely.'},
+  {c:'ra', t:'<b>runner-agent readiness</b> — <code>/health/ready/</code> now probes the k8s API <code>/readyz</code> (503 when unreachable); the pod drops from rotation until the cluster is back.'},
+  {c:'ext', t:'<b>Versions</b> — run-scheduler installs <code>run-scheduler-sdk 0.242.4</code> from the internal package registry; runtime-image 0.0.60 (batch path).'},
+  {c:'plan', t:'<b>◌ Auth rollout</b> — S2S internal auth deployed; compute endpoints use the shared auth helper; ◌ roll it across every run-scheduler endpoint. ◌ More registry entries (runners/pools, queue shapes).'},
+  {c:'plan', t:'<b>⚠ Schema drift</b> — the job model is re-declared 3× (Python service → Python service → Go), synced by convention; metric names remap twice (runner-agent silently defaults unknowns to CPU); runner-agent\'s StandardRunner affinity/tolerations aren\'t in the canonical v1alpha2 spec; runner-agent\'s openapi.yaml lags the Go model (tokens, httpAccessRules). Deep dive: internal design doc, "Run Request Schema Transformations".'},
+]};
+const gl=(repo,role)=>`<a class="ghlink" href="https://github.com/${repo}" target="_blank" rel="noopener">${repo} ↗</a> — ${role}`;
+const repos={id:'sec-repos', x:240, y:1470, w:1756, title:'Code repositories · github.com/acme (click any box for its per-component repo link)', items:[
+  {c:'ja',   t:gl('acme/job-api','REST API · job definition / job / run lifecycle · replacement engine')},
+  {c:'rs',   t:gl('acme/run-scheduler','run scheduler · runner dispatch · runner registry')},
+  {c:'ra',   t:gl('acme/runner-agent','resolves operator type + applies the CRD')},
+  {c:'rm',   t:gl('acme/run-monitor','watches job pods (k8s informer) → status callback')},
+  {c:'ra',   t:gl('acme/standard-runner-operator','StandardRunner operator (reconciles CRD → pods) · parked secrets sidecar (#42)')},
+  {c:'ext',  t:gl('acme/platform','platform monolith — accounts, RBAC, internal auth, feature flags')},
+  {c:'ext',  t:gl('acme/edge-gateway','edge gateway controller — auth + X-Org-* identity headers')},
+]};
+
+const N=[
+  // clients
+  {id:'ui',  c:'ext', x:40, y:170, w:170, h:64, t:'Client apps / CLI', s:'REST · API keys'},
+  {id:'gw', c:'ext', x:40, y:280, w:170, h:64, t:'Edge gateway', s:'auth · X-Org-* headers'},
+
+  // job-api — left column
+  {id:'ja-api',    c:'ja', x:260, y:170, w:200, h:66, t:'REST API (FastAPI)', s:':8701 · /jobs /definitions'},
+  {id:'ja-auth',   c:'ja', sm:1, x:260, y:252, w:200, h:50, t:'Auth middleware', s:'X-Org-* headers · Bearer S2S'},
+  {id:'ja-def',    c:'ja', x:260, y:318, w:200, h:56, t:'Job definition service', s:'spec · lock · clone'},
+  {id:'ja-job',    c:'ja', x:260, y:390, w:200, h:56, t:'Job service', s:'create · settings · stats'},
+  {id:'ja-build',  c:'ja', sm:1, x:260, y:462, w:200, h:52, t:'Build service', s:'code → image via image builder'},
+  {id:'ja-mq',     c:'ja', sm:1, x:260, y:530, w:200, h:46, t:'Message queue · workers', s:'replacement · readiness tasks'},
+  // job-api — right column
+  {id:'ja-sched',  c:'ja', x:490, y:170, w:200, h:66, t:'Scheduler client', s:'schedule · stop · get'},
+  {id:'ja-status', c:'ja', sm:1, x:490, y:252, w:200, h:50, t:'Status receiver', s:'POST /runs/{id}/status'},
+  {id:'ja-run',    c:'ja', x:490, y:318, w:200, h:56, t:'Run service', s:'lifecycle · 1..N per job'},
+  {id:'ja-repl',   c:'ja', x:490, y:390, w:200, h:60, t:'Replacement engine', s:'rolling · queue + cron'},
+  {id:'ja-db',     c:'ext', sm:1, x:490, y:466, w:200, h:46, t:'PostgreSQL', s:'jobs · runs · definitions'},
+
+  // platform services
+  {id:'plat-api',  c:'ext', sm:1, x:260, y:724, w:230, h:52, t:'Platform API', s:'RBAC · bundles · users · keys'},
+  {id:'plat-auth', c:'ext', sm:1, x:520, y:724, w:230, h:52, t:'Internal auth', s:'S2S bearer tokens'},
+  {id:'plat-build',c:'ext', sm:1, x:260, y:794, w:230, h:52, t:'Image builder', s:'POST /v1/builds → registry'},
+  {id:'plat-telemetry', c:'ext', sm:1, x:520, y:794, w:230, h:52, t:'Telemetry', s:'logs · metrics · traces'},
+
+  // run-scheduler
+  {id:'rs-run-api', c:'rs', x:860, y:170, w:160, h:66, t:'Run API', s:'POST /runs/{id}/schedule'},
+  {id:'rs-sched',   c:'rs', x:1040, y:170, w:160, h:66, t:'RunScheduler', s:'L1 select · runner first'},
+  {id:'rs-runner-client', c:'rs', x:1040, y:252, w:160, h:60, t:'RunnerClient', s:'→ runner-agent /jobs/'},
+  {id:'rs-s2s',     c:'rs', sm:1, x:1040, y:328, w:160, h:48, t:'S2S auth', s:'TokenValidator'},
+  {id:'rs-reg',     c:'rs', sm:1, x:1040, y:392, w:160, h:56, t:'Runner registry', s:'runners self-register here'},
+
+  // runner-agent
+  {id:'ra-api',    c:'ra', x:1276, y:170, w:140, h:64, t:'runner-agent API', s:'Go net/http · :8080'},
+  {id:'ra-res',    c:'ra', x:1276, y:252, w:140, h:56, t:'Operator resolver', s:'Batch·GPU·Standard'},
+  {id:'ra-k8s',    c:'ra', x:1276, y:340, w:140, h:56, t:'K8s client', s:'build + apply CRD'},
+  {id:'ra-reg',    c:'ra', sm:1, x:1436, y:170, w:134, h:64, t:'Scheduler registrar', s:'runner + queues'},
+  {id:'ra-router', c:'ra', sm:1, x:1436, y:252, w:134, h:64, t:'HTTPRoute router', s:'stamp /runs/{id}'},
+
+  // kubernetes
+  {id:'k8s-crd',  c:'ext', x:1646, y:166, w:150, h:84, t:'Custom resources', s:'Batch · GPU · Standard'},
+  {id:'k8s-ops',  c:'ext', x:1826, y:166, w:150, h:84, t:'L1 operators', s:'separate controllers'},
+  {id:'k8s-pods', c:'ext', x:1826, y:300, w:150, h:70, t:'Job pods', s:'user containers · replicas'},
+  {id:'k8s-gw',   c:'ext', x:1646, y:300, w:150, h:70, t:'Gateway route', s:'/runs/{id} → svc'},
+
+  {id:'sidecar', c:'plan', ghost:1, sm:1, x:1646, y:374, w:150, h:44, t:'⏸ Secrets sidecar', s:'PoC done · on hold'},
+
+  // monitor
+  {id:'rm', c:'rm', x:880, y:742, w:240, h:74, t:'run-monitor', s:'Go · watches pods via k8s informer'},
+];
+
+const A=[
+  {f:'ui', t:'gw', k:'internal'},
+  {f:'ui', t:'k8s-gw', k:'call', route:'invoke', l:'⑧ invoke job — gateway /runs/{id}', lo:[-468,0]},
+  {f:'gw', t:'ja-api', k:'seam', l:'① manage definitions & jobs', lo:[-110,0]},
+
+  // job-api internals
+  {f:'ja-api', t:'ja-auth', k:'internal'},
+  {f:'ja-auth', t:'ja-def', k:'internal'},
+  {f:'ja-def', t:'ja-job', k:'internal'},
+  {f:'ja-job', t:'ja-repl', k:'internal', sides:['right','left']},
+  {f:'ja-job', t:'ja-run', k:'internal', sides:['right','left']},
+  {f:'ja-run', t:'ja-sched', k:'internal'},
+  {f:'ja-status', t:'ja-run', k:'internal'},
+  {f:'ja-repl', t:'ja-db', k:'internal'},
+
+  // platform loops
+  {f:'ja-job', t:'plat-api', k:'call', route:'leftloop', lx:212, l:'RBAC · bundles'},
+  {f:'ja-build', t:'plat-build', k:'call', route:'leftloop', lx:226},
+
+  // main seam chain
+  {f:'ja-sched', t:'rs-run-api', k:'seam', l:'② POST /runs/{id}/schedule (S2S)', lo:[6,-58]},
+  {f:'rs-run-api', t:'rs-sched', k:'internal'},
+  {f:'rs-sched', t:'rs-runner-client', k:'internal'},
+  {f:'rs-runner-client', t:'ra-api', k:'seam', l:'③ POST /jobs/', lo:[0,-96]},
+  {f:'ra-api', t:'ra-res', k:'internal'},
+  {f:'ra-res', t:'ra-k8s', k:'internal'},
+  {f:'ra-api', t:'ra-router', k:'internal', sides:['right','left']},
+  {f:'ra-k8s', t:'k8s-crd', k:'seam', l:'④ apply CRD', lo:[-11,64]},
+  {f:'k8s-crd', t:'k8s-ops', k:'internal'},
+  {f:'k8s-ops', t:'k8s-pods', k:'internal', l:'⑤ reconcile → pods', lo:[54,0]},
+  {f:'ra-router', t:'k8s-gw', k:'internal', l:'stamp route', lo:[0,20]},
+  {f:'k8s-gw', t:'k8s-pods', k:'internal'},
+
+  // registration
+  {f:'ra-reg', t:'rs-reg', k:'reg', route:'reg', bidir:1, l:'⓪ startup: register runner — pools + queues ⇄ ids (POST /i/api/v2/…)', lo:[36,12]},
+  {f:'rs-reg', t:'ra-api', k:'plan', route:'hb', l:'◌ heartbeat?', lo:[55,-47]},
+
+  // status loop
+  {f:'k8s-pods', t:'rm', k:'poll', route:'watch', l:'⑥ watch pods (k8s informer)', lo:[0,-14]},
+  {f:'rm', t:'ja-status', k:'poll', route:'statuscb', l:'⑦ POST /runs/{id}/status (Bearer S2S)', lo:[0,107]},
+];
+
+/* ---------- drawers ---------- */
+const P=t=>`<span class="path">${t}</span>`;
+const D={
+  ui:{r:'ext',t:'Client apps / API clients',role:'Users and automations managing jobs — creating job definitions, launching jobs, checking status and metrics.',
+    b:`<div class="sec"><p>All traffic enters through the platform API surface and is routed to job-api by the edge gateway. Feature-gated by flags like <code>ENABLE_JOB_API_CONTAINERS</code>.</p></div>`},
+  gw:{r:'ext',gh:'acme/edge-gateway',t:'Edge gateway',role:'The platform\'s edge gateway. Authenticates the caller and forwards to job-api with trusted X-Org-* identity headers.',
+    b:`<div class="sec"><h3>Injects</h3><p><code>X-Org-User-Id</code> · <code>X-Org-Tenant-Id</code> · <code>X-Org-Org-Id</code> · <code>X-Org-Feature-Flags</code>. Internal services bypass the gateway with an internal auth bearer token.</p></div>
+    <div class="sec"><h3>How it routes (chart evidence)</h3><ul>
+      <li><code>apiGateway.enabled: true</code> → gateway HTTPRoute (<a class="ext" target="_blank" href="https://github.com/acme/job-api/blob/main/charts/templates/gateway_httproute.yaml">gateway_httproute.yaml</a>) on <code>gateway-public</code> + bridge Service.</li>
+      <li>Canary releases select pods via the <code>X-Release-Track</code> header.</li></ul></div>
+    <div class="sec"><h3>Note</h3><p>job-api\'s middleware is gateway-agnostic — it trusts whatever injects <code>X-Org-*</code>.</p></div>`},
+
+  'ja-api':{r:'ja',t:'REST API (FastAPI)',role:'job-api\'s HTTP surface: uvicorn on :8701. Job definition, job, build and repository management plus the internal run status callback.',
+    b:`<div class="sec"><h3>Route groups</h3><ul>
+      <li><code>/definitions</code> — CRUD, lock, clone, <code>…/builds</code> (code-to-job).</li>
+      <li><code>/jobs</code> — CRUD, <code>start/stop</code>, <code>settings</code>, <code>replacement</code>, <code>promote</code>, <code>stats</code>, <code>endpointInfo</code>, <code>sharedRoles</code>, <code>runs</code>.</li>
+      <li><code>/definitionRepositories</code> — versioned definition groups.</li>
+      <li><code>POST /runs/{id}/status</code> — internal callback (run-monitor).</li>
+      <li><code>/health/live</code> · <code>/health/ready</code> (pings PostgreSQL).</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/main.py')}</li><li>${P('src/job_api/routes/jobs.py')}</li><li>${P('src/job_api/routes/definitions.py')}</li></ul></div>`},
+  'ja-auth':{r:'ja',t:'Auth middleware',role:'Resolves the caller: gateway-injected X-Org-* identity headers or an internal auth bearer token; merges user permissions with org entitlements and enforces feature flags.',
+    b:`<div class="sec"><h3>Modes</h3><ul><li>Gateway identity headers (primary) → user/tenant/org + flags.</li><li>Bearer token (internal services like run-monitor).</li><li>Canary mode when the platform API is unavailable.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/middleware/auth.py')}</li></ul></div>`},
+  'ja-def':{r:'ja',t:'Job definition service',role:'Job definitions are versioned container specs (image, entrypoint, env, ports, resources, security context). DRAFT until locked — a DRAFT definition can back at most one job; locking freezes the spec for reuse.',
+    b:`<div class="sec"><h3>Does</h3><ul><li>CRUD + validation of container specs (feature-gated: security contexts, code refs, GPU type).</li><li><b>Lock</b> — freezes the spec (DRAFT→LOCKED); code-based definitions get their image built via the Build service.</li><li>Clone → new DRAFT; repository versioning for rollouts.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/services/definition.py')}</li></ul></div>`},
+  'ja-job':{r:'ja',t:'Job service',role:'High-level job lifecycle: create (validates definition + resource bundle, schedules the initial run), settings updates, stats enrichment, permissions.',
+    b:`<div class="sec"><h3>Create flow</h3><ul><li>Validate the definition (DRAFT allowed — max one job per DRAFT) + RBAC + resource limits.</li><li>Match runtime to a compute bundle (Platform API).</li><li>Persist job + run (SUBMITTED) → schedule via scheduler client.</li><li>Grant creator EDITOR role.</li></ul></div>
+    <div class="sec"><h3>Status &amp; roadmap</h3><ul>
+      <li>✓ Job → single active run (1-1 mapping).</li>
+      <li>◌ Multi-run jobs: schedule additional runs (same pool first) and switch the active one on request.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/services/jobs/service.py')}</li><li>${P('src/job_api/services/resource_bundle_service.py')}</li></ul></div>`},
+  'ja-build':{r:'ja',t:'Build service (code-to-job)',role:'Turns user code (file catalog + Dockerfile) into a container image by submitting a build to the image builder, then polls status and exposes logs.',
+    b:`<div class="sec"><h3>Flow</h3><ul><li>Validate catalog via Platform API → upload Dockerfile to blob storage.</li><li><code>POST {builder}/v1/builds</code> → poll <code>GET /v1/builds/{id}/status</code>.</li><li>Built image URI lands in the definition spec on lock.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/services/definition_image_build_service.py')}</li><li>${P('src/job_api/clients/image_builder_client.py')}</li></ul></div>`},
+  'ja-sched':{r:'ja',t:'Scheduler client',role:'The seam to run-scheduler. Translates a Run into a ScheduledRun payload and manages it over HTTP with internal S2S auth.',
+    b:`<div class="sec"><h3>Calls</h3><ul>
+      <li><b>POST</b> <code>/runs/{id}/schedule</code> — payload: tasks (containers), resource_constraints (bundle id), replica_count, autoscaling, labels (<code>acme-run-id</code>, <code>-job-id</code>, <code>-user-id</code>…), annotations (incl. <code>acme.dev/run-callback-url</code>).</li>
+      <li><b>GET</b> / <b>DELETE</b> <code>/runs/{id}</code> (+ pre-flight poll that waits for the old <code>standard-{id}</code> CR to disappear before rescheduling).</li></ul></div>
+    <div class="sec"><h3>Config</h3><p><code>RUN_SCHEDULER_BASE_URL</code> (default <code>http://localhost:48008/api/v2</code>) · timeout 15s · retries with backoff. Timeouts → <code>504</code> + status revert (JOBS-1730).</p></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/clients/run_scheduler.py')}</li></ul></div>`},
+  'ja-status':{r:'ja',t:'Status receiver',role:'Internal endpoint run-monitor POSTs run status envelopes to. Persists transitions and kicks the state machines.',
+    b:`<div class="sec"><h3>Envelope (RunStatusEnvelope)</h3><p><code>{job_id, overall_status{state, summary, last_updated}, pod_statuses[{pod_name, pod_status…}]}</code> — camelCase on the wire (<code>jobId</code>, <code>overallStatus</code>, <code>podStatuses</code>); the run id rides in the URL path.</p></div>
+    <div class="sec"><h3>On update</h3><ul><li>Persist run status → derive job status.</li><li>WARMING → enqueue readiness_check task (network probe).</li><li>Candidate/previous transition → advance replacement.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/routes/runs.py')}</li></ul></div>`},
+  'ja-run':{r:'ja',t:'Run service',role:'A run is one running instance of a job (the deployable unit). Owns its lifecycle and status interpretation.',
+    b:`<div class="sec"><h3>State machine (full enum)</h3><p><span class="pill">UNKNOWN</span><span class="pill">SUBMITTED</span><span class="pill">INITIALIZING</span><span class="pill">PROVISIONING</span><span class="pill">LAUNCHING</span><span class="pill">WARMING</span><span class="pill">RUNNING</span><span class="pill">SUSPENDED</span><span class="pill">DRAINING</span><span class="pill">RESTARTING</span><span class="pill">STOPPING</span><span class="pill">STOPPED</span><span class="pill">INTERRUPTED</span><span class="pill">ERRORED</span><span class="pill">TERMINATED</span></p><p>JobStatus surfaces a user-friendly subset (WARMING/DRAINING/RESTARTING stay internal).</p></div>
+    <div class="sec"><h3>Status &amp; roadmap — runs per job</h3><ul>
+      <li>✓ Today: <b>1 active run</b> per job (+1 candidate during rolling replacement).</li>
+      <li>◌ Planned: <b>N runs per job</b> — starting with multiple runs on the <b>same pool</b>; job-api sends the request to a new run and <b>activates</b> it (active-run switch).</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/services/run.py')}</li><li>${P('src/job_api/services/run_status.py')}</li><li>${P('src/job_api/services/readiness_gate.py')}</li></ul></div>`},
+  'ja-repl':{r:'ja',t:'Replacement engine',role:'Blue-green-style rolling definition replacement: runs a candidate run alongside the previous one, then promotes and finalizes.',
+    b:`<div class="sec"><h3>States (full enum)</h3><p><span class="pill">UNKNOWN</span><span class="pill">SUBMITTED</span><span class="pill">INITIALIZING</span><span class="pill">STAGED</span><span class="pill">PROMOTING</span><span class="pill">FINALIZING</span><span class="pill">COMPLETED</span><span class="pill">CANCELING</span><span class="pill">ERRORED</span></p></div>
+    <div class="sec"><h3>Relation to multi-run</h3><p>Replacement is today's only case of two runs under one job; the planned N-run model generalizes this (activate any run, not just a rollout candidate).</p></div>
+    <div class="sec"><h3>Driven by</h3><ul><li>queue task <code>process_replacement</code> and/or a k8s CronJob (<code>jobs/replacement_job.py</code>, every minute) — rescues stuck gates and stuck-stopping runs.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/services/jobs/replacement.py')}</li><li>${P('src/job_api/tasks/replacement.py')}</li></ul></div>`},
+  'ja-db':{r:'ext',t:'PostgreSQL',role:'job-api\'s primary store: jobs, runs, job definitions, definition repositories, replacement state, task results.',
+    b:`<div class="sec"><p>Async driver; readiness probe pings it; migrations via a dedicated migration tool.</p></div>`},
+  'ja-mq':{r:'ja',t:'Message queue · workers',role:'Async task backbone (optional, JOB_QUEUE_ENABLED). Queues readiness checks and replacement steps off the request path.',
+    b:`<div class="sec"><h3>Queues</h3><p><code>job_tasks</code> · dead-letter · delay (quorum, durable). Workers run as a separate deployment.</p></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/job_api/tasks/broker.py')}</li></ul></div>`},
+
+  'plat-api':{r:'ext',gh:'acme/platform',t:'Platform API',role:'Platform brain job-api leans on: RBAC/ACL evaluation, entitlements, compute bundles, user/M2M info, API keys, shared roles, file catalogs.',
+    b:`<div class="sec"><h3>Sample calls</h3><ul><li><code>GET /api/v2/compute/bundles/</code></li><li><code>POST /api/v2/accessControls/evaluate/</code></li><li><code>POST /api/v2/entitlements/evaluate/</code></li><li><code>GET /api/v2/files/{cat}/versions/{v}/allFiles/</code></li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li><a class="ext" href="https://github.com/acme/job-api/blob/main/src/job_api/clients/platform_api.py" target="_blank">src/job_api/clients/platform_api.py</a> (job-api client)</li></ul></div>`},
+  'plat-auth':{r:'ext',t:'Internal auth',role:'Token service. Issues the S2S bearer tokens job-api uses for every outbound call (run-scheduler, Platform API), with optional user impersonation.',
+    b:`<div class="sec"><p>Via a shared auth helper library; also validates inbound bearer tokens.</p></div>`},
+  'plat-build':{r:'ext',t:'Image builder',role:'Builds container images from user code for the code-to-job flow; pushes to the OCI registry that jobs then run from.',
+    b:`<div class="sec"><h3>API</h3><p><code>POST /v1/builds</code> · <code>GET /v1/builds/{id}/status</code> · <code>POST /v1/builds/{id}/stop</code>. Config: <code>JOB_API_BUILDER_URL / _IMAGE_REGISTRY / _IMAGE_REPOSITORY</code>.</p></div>`},
+  'plat-telemetry':{r:'ext',t:'Telemetry',role:'Telemetry store for job logs, metrics and traces; backs the /stats endpoints.',
+    b:`<div class="sec"><p>Separate HTTP clients for logging / metrics / tracing; per-org storage provisioning.</p></div>
+    <div class="sec"><h3>Files</h3><ul><li><a class="ext" href="https://github.com/acme/job-api/tree/main/src/job_api/clients/telemetry" target="_blank">src/job_api/clients/telemetry/</a> (job-api client)</li></ul></div>`},
+
+  'rs-run-api':{r:'rs',t:'Run API',role:'The S2S surface external services consume. One run ≈ one pod-group; scheduling returns the access endpoint immediately.',
+    b:`<div class="sec"><h3>Endpoints (all S2SAuthVerify)</h3><ul>
+      <li><code>POST /runs/{id}/schedule</code> → <code>{run_id, access_endpoint}</code> built from runner-agent's <code>{scheme,host,port,urlPrefix}</code>.</li>
+      <li><code>GET /runs/{id}</code> · <code>GET /runs/{id}/pods</code> · <code>DELETE /runs/{id}</code>.</li>
+      <li><code>GET/DELETE /runs/cache/{name}</code> (model cache).</li></ul></div>
+    <div class="sec"><h3>Details</h3><ul>
+      <li><code>access_endpoint</code> is assembled from runner-agent\'s <code>{scheme, host, port, urlPrefix}</code> answer.</li>
+      <li>Placement recorded in <code>RunnerJobPlacement</code> (run, runner, queue, runner URL) — <code>job_id</code> tracking lands with a follow-up PR.</li>
+      <li><code>tenant_id</code> travels as a query param for dynamically-namespaced GPU jobs.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/run_scheduler/v2/endpoints/run.py')}</li><li>${P('src/run_scheduler/v2/schemas/run/run.py')}</li><li>${P('src/run_scheduler/v2/crud/runner_job_placement.py')}</li></ul></div>`},
+  'rs-sched':{r:'rs',t:'RunScheduler',role:'Chooses the L1 scheduler for a run. Priority: Runner (runner-agent) → BatchRunner → GpuRunner → StandardRunner.',
+    b:`<div class="sec"><p>With runner scheduling enabled (<code>RUN_SCHEDULER_RUNNER_ENABLED</code>), it resolves a <code>type:"runner"</code> pool from the registry, filters queues by the run\'s resource constraints (bundle → CPU/GPU/memory), and applies a <b>selector</b> (random · lowest_price · pre_selected) before handing off to RunnerClient.</p></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/run_scheduler/v2/services/runs/scheduler.py')}</li><li>${P('src/run_scheduler/v2/services/runs/runner.py')}</li></ul></div>`},
+  'rs-runner-client':{r:'rs',t:'RunnerClient',role:'Translates RunSchema → runner-agent CreateJobRequest and calls the runner over HTTP.',
+    b:`<div class="sec"><h3>Calls</h3><ul><li><b>POST</b> <code>{runner}/jobs/</code> · <b>GET/DELETE</b> <code>{runner}/jobs/{id}</code>.</li><li>Runner base URL = the registered pool's <code>secret</code> column (surfaced as <code>api_url</code>).</li><li>Labels/annotations (incl. the run-callback-url) pass through to the CRD.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('src/run_scheduler/v2/services/runs/runner_client.py')}</li></ul></div>`},
+  'rs-s2s':{r:'rs',t:'S2S auth',role:'Service-to-service token validation guarding the run API.',
+    b:`<div class="sec"><p><code>S2SAuthVerify</code> → <code>TokenValidator().validate_token()</code>; gated by <code>internal_auth_enabled</code>.</p></div>`},
+  'rs-reg':{r:'rs',t:'Runner registry',role:'Internal API where runner-agent instances self-register as compute pools with queues — this is how the run-scheduler control plane learns a runner exists.',
+    b:`<div class="sec"><h3>Handshake (⇄)</h3><ul><li><b>→</b> <code>POST /i/api/v2/runners</code> (type "runner", external URL as secret, <code>useRBAC:false</code>) · <b>←</b> runner id.</li><li><b>→</b> <code>POST /i/api/v2/runners/{id}/queues</code> · <b>←</b> queue ids.</li></ul></div>
+    <div class="sec"><h3>Status &amp; roadmap</h3><ul>
+      <li>◌ Dev/stg scheduling-config enablement in flight — <a class="ext" href="https://github.com/acme/run-scheduler/pull/514" target="_blank">run-scheduler#514</a>.</li>
+      <li>◌ <b>More registry entries</b> (more runners/pools, queue shapes).</li>
+      <li>◌ <b>Heartbeat gap</b> — run-scheduler never re-checks a registered runner (ghost arrow); a dead runner stays schedulable.</li>
+      <li>◌ Expose runner/queue APIs publicly via the gateway allowed routes.</li></ul></div>`},
+
+  'ra-api':{r:'ra',t:'runner-agent API',role:'runner-agent\'s front door on :8080. Stateless — all job state lives in the CRDs. /health/ready now probes the k8s API /readyz.',
+    b:`<div class="sec"><h3>Routes</h3><ul><li><code>POST /jobs/</code> → <code>{scheme,host,port,urlPrefix}</code> (201).</li><li><code>GET/DELETE /jobs/{id}</code> · <code>start/stop/status</code>.</li><li><code>/health/live|ready</code> · <code>/metrics</code>.</li></ul></div>
+    <div class="sec"><h3>Request body — CreateJobRequest</h3><p><code>name · definitionId · definition.spec.containerGroups[].containers[] (imageUri, port, resourceRequest, env, probes, tokens[]) · runtime (replicaCount, autoscaling, resources[].resourceBundleId) · labels · annotations · secret_names</code></p></div>
+    <div class="sec"><h3>Error cases</h3><ul><li><code>400</code> missing tenant-id (dynamic namespacing / secret_names).</li><li><code>422</code> token job with <code>BATCH_ENABLED=false</code>, or unsupported autoscaling metric.</li></ul></div>
+    <div class="sec"><h3>◌ Heartbeat gap</h3><p><code>/health/ready</code> exists, but run-scheduler never polls it — no liveness view of registered runners today.</p></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('cmd/runner-agent/main.go')}</li><li>${P('internal/server/server.go')}</li><li>${P('internal/model/job.go')}</li></ul></div>`},
+  'ra-res':{r:'ra',t:'Operator resolver',role:'Picks the CRD type in priority order Batch → GPU → Dynamo → Standard: tokens[] → BatchRunner (the BATCH_ENABLED gate is enforced at schedule time — 422 when off); image matching a GPU-model registry → GpuRunner; Dynamo is a stub (CanHandle always false); else Standard (fallback).',
+    b:`<div class="sec"><h3>Files</h3><ul><li>${P('internal/operator/operator.go')}</li><li>${P('internal/operator/{batch,gpu,standard,dynamo}/')}</li></ul></div>`},
+  'ra-k8s':{r:'ra',t:'K8s dynamic client',role:'Builds and applies the CRD manifest. runner-agent\'s job ends here — separate operators do the running.',
+    b:`<div class="sec"><h3>Access endpoint returned</h3><ul><li>Standard: ingress FQDN, autoscaler interceptor, or in-cluster <code>svc.cluster.local</code> DNS.</li><li>GPU / Batch: in-cluster service FQDN.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('internal/k8s/client.go')}</li><li>${P('internal/operator/standard/crd/types.go')} (ComputeAccessEndpoint)</li></ul></div>`},
+  'ra-reg':{r:'ra',t:'Scheduler registrar',role:'At startup, registers this runner with run-scheduler (pool + queues from the resource config) so RunScheduler can find it. The response returns the pool/queue ids (⇄). One-shot: no heartbeat afterwards.',
+    b:`<div class="sec"><h3>Config</h3><p><code>RUN_SCHEDULER_INTERNAL_API_URL</code> · <code>RUN_SCHEDULER_S2S_TOKEN</code> · <code>RUNNER_AGENT_EXTERNAL_URL</code> · <code>RESOURCE_CONFIG_PATH</code>.</p></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('internal/scheduler/client.go')}</li></ul></div>`},
+  'ra-router':{r:'ra',t:'HTTPRoute router',role:'After a successful schedule, stamps gateway HTTPRoutes so traffic can reach the job.',
+    b:`<div class="sec"><h3>Routes</h3><ul><li><code>/runs/{runID}</code> and <code>/jobs/{jobID}</code> → backend Service, prefix rewritten to <code>/</code>.</li><li>Labeled <code>acme-run-id</code> for delete-by-label teardown.</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('internal/router/router.go')}</li></ul></div>`},
+
+  'k8s-crd':{r:'ext',t:'Custom resources',role:'The CRDs runner-agent writes — inert specs until their operators reconcile them. One job/run = one CRD.',
+    b:`<div class="sec"><h3>Types</h3><ul>
+      <li><code>BatchRunner</code> — <code>batch.acme.dev/v1alpha1</code> · ns <code>batch-runner</code> · selected when containers carry <code>tokens[]</code>.</li>
+      <li><code>GpuRunner</code> (+ shared <code>GpuCache</code>) — <code>compute.acme.dev/v1alpha1</code> · ns <code>gpu-runner</code> (or per-tenant <code>gpu-runner-{tenant}</code>) · selected for GPU-model images.</li>
+      <li><code>StandardRunner</code> — <code>standard.acme.dev/v1alpha2</code> · ns <code>standard-runner</code> · the default fallback.</li></ul></div>
+    <div class="sec"><p>Labels carry <code>acme-run-id</code> / <code>-job-id</code> / tenant ids all the way from job-api, so teardown and observability can select by run.</p></div>`},
+  'k8s-ops':{r:'ext',t:'L1 operators',role:'SEPARATE in-cluster controllers (not runner-agent). They watch the CRDs and own the real pod lifecycle.',
+    b:`<div class="sec"><h3>Who reconciles what</h3><ul>
+      <li><b>batch operator</b> → BatchRunner → token-served job pods.</li>
+      <li><b>GPU operator</b> → GpuRunner/GpuCache → pulls the model image from the registry, warms weights on a PVC, serves on GPU nodes.</li>
+      <li><b>standard operator</b> → StandardRunner → Deployments/Services, autoscaled (scale-to-zero via the HTTP interceptor).</li></ul></div>
+    <div class="sec"><p>runner-agent only writes the spec; everything after that — scheduling pods, restarts, scaling — belongs to these controllers.</p></div>`},
+  'k8s-pods':{r:'ext',t:'Job pods',role:'The user\'s containers, running with the definition\'s spec (image, env, probes, resources) at the requested replica count.',
+    b:`<div class="sec"><h3>Status paths</h3><ul><li><b>To job-api:</b> pods → run-monitor (k8s informer) → <code>POST /runs/{id}/status</code>.</li><li><b>On demand:</b> CRD status → runner-agent <code>GET /jobs/{id}</code> → run-scheduler <code>GET /runs/{id}</code> (used by job-api's scheduler client, e.g. the pre-reschedule termination poll).</li></ul></div>`},
+  'k8s-gw':{r:'ext',t:'Gateway route',role:'How callers reach the running job: /runs/{id} on the pre-provisioned gateway routes to the job Service.',
+    b:`<div class="sec"><p>job-api\'s <b>internal</b> <code>GET /jobs/{id}/endpointInfo</code> (consumed by the invocation proxy) resolves the current run\'s endpoint URL — API keys are deliberately excluded (<code>response_model_exclude={"api_keys"}</code>).</p></div>`},
+
+  sidecar:{r:'ra',gh:'acme/standard-runner-operator',t:'Secrets-injection sidecar (on hold)',role:'PoC complete, parked. An injector init + sidecar pair in the job pod that mounts secret-store-backed files at /mnt/secrets.',
+    b:`<div class="sec"><h3>How it works</h3><ul>
+      <li>job-api passes <code>secret_names</code> → run-scheduler → runner-agent; with <code>SECRETS_INJECTION_ENABLED</code> the StandardRunner CRD is created with <code>secrets_injection</code>.</li>
+      <li>The standard operator then adds the init + sidecar containers to the pod.</li></ul></div>
+    <div class="sec"><h3>Status</h3><p>⏸ runner-agent flag defaults <b>false</b>; standard-operator-side change parked — <a class="ext" href="https://github.com/acme/standard-runner-operator/pull/42" target="_blank">standard-runner-operator#42</a> (open).</p></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('internal/model/job.go')} (runner-agent · SecretNames)</li></ul></div>`},
+
+  rm:{r:'rm',t:'run-monitor',role:'A separate Go service that closes the loop: run-scheduler never pushes to job-api. The monitor watches the job pods directly in Kubernetes and POSTs status envelopes to the callback URL.',
+    b:`<div class="sec"><h3>Loop</h3><ul><li>Watches pods via a k8s <b>SharedIndexInformer</b> (add/update/delete events) — it does NOT call run-scheduler.</li><li>Reads the <code>acme.dev/run-callback-url</code> annotation <b>from the pods</b> (cached per run; falls back to a configured base URL).</li><li><b>POST</b> <code>{callback}/runs/{id}/status</code> with the RunStatusEnvelope (internal S2S auth).</li></ul></div>
+    <div class="sec"><h3>Files</h3><ul><li>${P('pkg/agent/pod_agent.go')} (informer)</li><li>${P('pkg/agent/agent.go')} (callback URL cache + POST)</li><li>${P('internal/constants/constants.go')} (annotation key)</li></ul></div>`},
+};
+const repoMeta={ja:['job-api',C.ja],rs:['run-scheduler',C.rs],ra:['runner-agent',C.ra],rm:['run-monitor',C.rm],ext:['platform / infra',C.ext]};
+
+/* ================= render ================= */
+const stage=document.getElementById('stage'), wires=document.getElementById('wires');
+stage.style.width=STAGE_W+'px'; stage.style.height=STAGE_H+'px';
+wires.setAttribute('width',STAGE_W); wires.setAttribute('height',STAGE_H); wires.setAttribute('viewBox',`0 0 ${STAGE_W} ${STAGE_H}`);
+const nmap={}; N.forEach(n=>nmap[n.id]=n);
+
+panels.forEach(p=>{const col=C[p.c];const d=document.createElement('div');d.className='panel';
+  d.style.cssText=`left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;border-color:${tint(col,.5)};background:${tint(col,.04)}`;
+  d.innerHTML=`<span class="ptitle" style="color:${col}">${p.t}</span>`+(p.s?`<span class="psub">${p.s}</span>`:'');
+  stage.appendChild(d);});
+
+subheads.forEach(s=>{const d=document.createElement('div');d.className='subhead';
+  d.style.cssText=`left:${s.x}px;top:${s.y}px`;d.textContent=s.text;stage.appendChild(d);});
+
+[process,notes,repos].forEach(card=>{const d=document.createElement('div');d.className='notes';
+  if(card.id)d.id=card.id;
+  d.style.cssText=`left:${card.x}px;top:${card.y}px;width:${card.w}px`;
+  d.innerHTML=`<h4>${card.title}</h4><div class="grid">`+
+    card.items.map(i=>`<div class="item${i.step!==undefined?' step':''}"${i.step!==undefined?` data-step="${i.step}"`:''}><span class="k" style="background:${C[i.c]}"></span>${i.t}</div>`).join('')+`</div>`;
+  stage.appendChild(d);});
+
+const nodeEls={},edgeReg=[];
+N.forEach(n=>{const col=C[n.c];const d=document.createElement('div');d.className='node'+(n.sm?' sm':'')+(n.ghost?' ghost':'');d.dataset.id=n.id;
+  d.style.cssText=`left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;border-color:${tint(col,.6)};background:linear-gradient(180deg,${tint(col,.16)},${tint(col,.05)})`;
+  d.innerHTML=`<span class="tag" style="background:${col}"></span><div class="nt">${n.t}</div><div class="ns">${n.s}</div>`;
+  d.addEventListener('click',()=>openDrawer(n.id));
+  d.addEventListener('mouseenter',()=>hoverNode(n.id,true));
+  d.addEventListener('mouseleave',()=>hoverNode(n.id,false));
+  nodeEls[n.id]=d;stage.appendChild(d);});
+
+function anc(n,s){if(s==='top')return[n.x+n.w/2,n.y];if(s==='bottom')return[n.x+n.w/2,n.y+n.h];if(s==='left')return[n.x,n.y+n.h/2];return[n.x+n.w,n.y+n.h/2];}
+function sides(a,b){const ac=[a.x+a.w/2,a.y+a.h/2],bc=[b.x+b.w/2,b.y+b.h/2];const dx=bc[0]-ac[0],dy=bc[1]-ac[1];
+  if(Math.abs(dx)>=Math.abs(dy))return dx>0?['right','left']:['left','right'];return dy>0?['bottom','top']:['top','bottom'];}
+const nm={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]};
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const defs=el('defs',{});
+[['m-internal',C.line],['m-seam',C.seam],['m-call',C.ja],['m-reg',C.ra],['m-poll',C.rm],['m-plan',C.plan]].forEach(([id,col])=>{
+  const m=el('marker',{id,markerWidth:8,markerHeight:8,refX:6.5,refY:3,orient:'auto',markerUnits:'strokeWidth'});
+  m.appendChild(el('path',{d:'M0,0 L7,3 L0,6 Z',fill:col}));defs.appendChild(m);
+  const mr=el('marker',{id:id+'-rev',markerWidth:8,markerHeight:8,refX:6.5,refY:3,orient:'auto-start-reverse',markerUnits:'strokeWidth'});
+  mr.appendChild(el('path',{d:'M0,0 L7,3 L0,6 Z',fill:col}));defs.appendChild(mr);});
+wires.appendChild(defs);
+const ST={internal:{c:C.line,w:1.5,d:'',o:.8},seam:{c:C.seam,w:2.6,d:'',o:1},call:{c:C.ja,w:1.6,d:'6 5',o:.85},
+  reg:{c:C.ra,w:1.8,d:'7 5',o:.95},poll:{c:C.rm,w:1.8,d:'7 5',o:.95},plan:{c:C.plan,w:1.7,d:'3 5',o:.85}};
+
+function bez(p0,s0,p1,s1){const dist=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]);const k=Math.max(30,Math.min(120,dist*.4));
+  const c0=[p0[0]+nm[s0][0]*k,p0[1]+nm[s0][1]*k],c1=[p1[0]+nm[s1][0]*k,p1[1]+nm[s1][1]*k];
+  return{d:`M${p0[0]},${p0[1]} C${c0[0]},${c0[1]} ${c1[0]},${c1[1]} ${p1[0]},${p1[1]}`,mid:[(p0[0]+3*c0[0]+3*c1[0]+p1[0])/8,(p0[1]+3*c0[1]+3*c1[1]+p1[1])/8]};}
+function poly(pts){let d='M'+pts[0][0]+','+pts[0][1];for(let i=1;i<pts.length;i++)d+=' L'+pts[i][0]+','+pts[i][1];
+  let total=0,segs=[];for(let i=1;i<pts.length;i++){const L=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);segs.push(L);total+=L;}
+  let half=total/2,mid=pts[0];for(let i=0;i<segs.length;i++){if(half<=segs[i]){const r=half/segs[i];mid=[pts[i][0]+(pts[i+1][0]-pts[i][0])*r,pts[i][1]+(pts[i+1][1]-pts[i][1])*r];break;}half-=segs[i];}
+  return{d,mid};}
+
+A.forEach(a=>{const F=nmap[a.f],T=nmap[a.t];if(!F||!T)return;const st=ST[a.k]||ST.internal;let g;
+  if(a.route==='leftloop'){const p=anc(F,'left'),q=anc(T,'left');const lx=a.lx||220;g=poly([p,[lx,p[1]],[lx,q[1]],q]);}
+  else if(a.route==='reg'){const p=anc(F,'bottom'),q=anc(T,'bottom');g=poly([p,[p[0],560],[q[0],560],q]);}
+  else if(a.route==='poll'){const p=anc(F,'top'),q=anc(T,'bottom');g=poly([p,[p[0],580],[q[0],580],q]);}
+  else if(a.route==='watch'){const p=anc(F,'bottom'),q=anc(T,'right');g=poly([p,[p[0],q[1]],q]);}
+  else if(a.route==='hb'){const p=anc(F,'right');const q=anc(T,'bottom');g=poly([p,[1236,p[1]],[1236,243],[q[0],243],q]);}
+  else if(a.route==='invoke'){const p=anc(F,'top');const q=anc(T,'left');g=poly([p,[p[0],96],[1610,96],[1610,q[1]],q]);}
+  else if(a.route==='statuscb'){const p=anc(F,'left'),q=anc(T,'right');g=poly([p,[775,p[1]],[775,q[1]],q]);}
+  else{const s=a.sides||sides(F,T);g=bez(anc(F,s[0]),s[0],anc(T,s[1]),s[1]);}
+  const pattrs={d:g.d,fill:'none',stroke:st.c,'stroke-width':st.w,'stroke-dasharray':st.d,'stroke-opacity':st.o,'marker-end':`url(#m-${a.k})`,'stroke-linecap':'round','stroke-linejoin':'round'};
+  if(a.bidir)pattrs['marker-start']=`url(#m-${a.k}-rev)`;
+  const pathEl=el('path',pattrs);wires.appendChild(pathEl);
+  const edge={key:a.f+'->'+a.t,f:a.f,t:a.t,path:pathEl,label:null};edgeReg.push(edge);
+  if(a.l){const lab=document.createElement('div');lab.className='wlabel'+(a.k==='seam'?' seam':'');lab.textContent=a.l;
+    const lx=g.mid[0]+(a.lo?a.lo[0]:0), ly=g.mid[1]+(a.lo?a.lo[1]:0);
+    lab.style.left=lx+'px';lab.style.top=ly+'px';stage.appendChild(lab);edge.label=lab;}});
+
+/* drawer */
+const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim');
+const REPO_URL={ja:'https://github.com/acme/job-api',rs:'https://github.com/acme/run-scheduler',ra:'https://github.com/acme/runner-agent',rm:'https://github.com/acme/run-monitor'};
+function linkPaths(container,repoKey){const base=REPO_URL[repoKey];if(!base)return;
+  container.querySelectorAll('span.path').forEach(sp=>{const p=sp.textContent.trim();
+    if(/[{*…]/.test(p)||p.startsWith('...'))return;
+    const isDir=p.endsWith('/');
+    const a=document.createElement('a');a.className='path';a.target='_blank';
+    a.href=base+(isDir?'/tree/main/':'/blob/main/')+p.replace(/\/$/,'');a.textContent=p;sp.replaceWith(a);});}
+let drawerMode=null;
+// per-box GitHub repo: explicit d.gh wins, else derive from the box's repo color key (REPO_URL)
+function ghRepo(d){if(d.gh)return d.gh;const base=REPO_URL[d.r];return base?base.replace('https://github.com/',''):null;}
+function openDrawer(id){const d=D[id];if(!d)return;const[rn,rc]=repoMeta[d.r];drawerMode='node';document.body.classList.remove('stepdrawer');
+  const repo=ghRepo(d);
+  const gh=repo?` &nbsp;·&nbsp; <a class="ghlink" href="https://github.com/${repo}" target="_blank" rel="noopener">${repo} ↗</a>`:'';
+  document.getElementById('drepo').innerHTML=`<span class="dot" style="background:${rc}"></span>${rn}${gh}`;
+  document.getElementById('dtitle').textContent=d.t;document.getElementById('drole').textContent=d.role;
+  const body=document.getElementById('dbody');body.innerHTML=d.b||'';linkPaths(body,d.r);
+  drawer.classList.add('on');scrim.classList.add('on');}
+function close(){
+  if(typeof activeStep!=='undefined'&&activeStep!==null){
+    if(drawerMode==='node'){openStep(activeStep);return;}
+    exitTour();return;}
+  drawer.classList.remove('on');scrim.classList.remove('on');document.body.classList.remove('stepdrawer');}
+document.getElementById('dx').onclick=close;scrim.onclick=close;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+
+
+/* ================= interactivity: steps, tour, hover ================= */
+const GH={ja:'https://github.com/acme/job-api/blob/main/',rs:'https://github.com/acme/run-scheduler/blob/main/',ra:'https://github.com/acme/runner-agent/blob/main/',rm:'https://github.com/acme/run-monitor/blob/main/'};
+const L=(r,p,txt)=>`<a class="ext" target="_blank" href="${GH[r]}${p}">${txt||p}</a>`;
+const NP=(id,txt)=>`<span class="pill" data-node="${id}">${txt}</span>`;
+const STEPS=[
+ {g:'⓪',c:'ra',title:'Register — runner-agent joins the control plane',role:'One-shot at startup: the runner announces itself so run-scheduler can schedule onto it.',
+  nodes:['ra-reg','rs-reg'],arrows:['ra-reg->rs-reg'],
+  b:`<div class="sec"><h3>Contract</h3><ul>
+    <li><b>→</b> <code>POST /i/api/v2/runners</code> — type <code>"runner"</code>, external URL in the pool <code>secret</code>, <code>useRBAC:false</code>; <b>←</b> runner id.</li>
+    <li><b>→</b> <code>POST /i/api/v2/runners/{id}/queues</code> per queue in the resource config; <b>←</b> queue ids.</li>
+    <li>Auth: S2S token (<code>RUN_SCHEDULER_S2S_TOKEN</code>).</li></ul></div>
+  <div class="sec"><h3>Gaps</h3><ul><li>◌ One-shot — no re-registration loop, and run-scheduler never health-checks the runner afterwards (the fuchsia ghost arrow).</li><li>◌ Dev/stg scheduling-config enablement in flight: <a class="ext" target="_blank" href="https://github.com/acme/run-scheduler/pull/514">run-scheduler#514</a>.</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('ra','cmd/runner-agent/registration.go')}</li><li>${L('ra','internal/scheduler/client.go')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('ra-reg','Scheduler registrar')}${NP('rs-reg','Runner registry')}</p></div>`},
+ {g:'①',c:'seam',title:'Create — job definition and job',role:'The user defines what to run (job definition) and asks for it to exist (job).',
+  nodes:['ui','gw','ja-api','ja-auth','ja-def','ja-job','ja-db','plat-api'],arrows:['ui->gw','gw->ja-api','ja-api->ja-auth','ja-auth->ja-def','ja-def->ja-job','ja-job->plat-api'],
+  b:`<div class="sec"><h3>What happens</h3><ul>
+    <li>The edge gateway authenticates and injects <code>X-Org-User-Id / -Tenant-Id / -Org-Id / -Feature-Flags</code>.</li>
+    <li>Job definition = versioned container spec, DRAFT until locked (a DRAFT can back exactly one job).</li>
+    <li><code>POST /jobs</code>: RBAC + entitlements via Platform API, runtime matched to a compute bundle, job + run persisted to PostgreSQL, creator granted EDITOR.</li></ul></div>
+  <div class="sec"><h3>Failure modes</h3><ul><li>403 on RBAC/entitlement rejection; 409-style error on a second job for a DRAFT definition; validation errors on bundle/resource mismatch.</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('ja','src/job_api/routes/jobs.py')}</li><li>${L('ja','src/job_api/services/jobs/service.py')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('gw','Edge gateway')}${NP('ja-def','Job definition service')}${NP('ja-job','Job service')}${NP('plat-api','Platform API')}</p></div>`},
+ {g:'②',c:'seam',title:'Schedule — job-api → run-scheduler',role:'The run (one running instance of the job) is handed to the run-scheduler control plane.',
+  nodes:['ja-job','ja-run','ja-sched','rs-run-api','rs-s2s'],arrows:['ja-job->ja-run','ja-run->ja-sched','ja-sched->rs-run-api'],
+  b:`<div class="sec"><h3>Contract</h3><ul>
+    <li><b>POST</b> <code>/runs/{id}/schedule</code> (internal S2S bearer, X-Request-Id).</li>
+    <li>Payload: tasks (containers), resource_constraints (bundle id), replica_count, autoscaling, labels (<code>acme-run-id/-job-id/-user-id…</code>), annotations incl. <code>acme.dev/run-callback-url</code>.</li>
+    <li>Response: <code>access_endpoint</code> — immediately, before pods exist.</li></ul></div>
+  <div class="sec"><h3>Failure modes</h3><ul><li>Timeout (15s) → job-api returns <b>504</b> and reverts the run status (JOBS-1730).</li><li>Pre-reschedule guard: polls until the old <code>standard-{id}</code> CR disappears.</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('ja','src/job_api/clients/run_scheduler.py')}</li><li>${L('rs','src/run_scheduler/v2/endpoints/run.py','endpoints/run.py')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('ja-run','Run service')}${NP('ja-sched','Scheduler client')}${NP('rs-run-api','Run API')}</p></div>`},
+ {g:'③',c:'seam',title:'Dispatch — run-scheduler → runner-agent',role:'run-scheduler picks a runner and forwards the job; the access endpoint comes straight back.',
+  nodes:['rs-run-api','rs-sched','rs-runner-client','rs-reg','ra-api'],arrows:['rs-run-api->rs-sched','rs-sched->rs-runner-client','rs-runner-client->ra-api'],
+  b:`<div class="sec"><h3>What happens</h3><ul>
+    <li>RunScheduler priority: <b>Runner → BatchRunner → GpuRunner → StandardRunner</b>; runner resolved from the registry, queues filtered by bundle constraints, selector applied (random · lowest_price · pre_selected).</li>
+    <li>RunnerClient <b>POST</b> <code>{runner}/jobs/</code> → 201 with <code>{scheme, host, port, urlPrefix}</code>; placement stored in <code>RunnerJobPlacement</code>.</li></ul></div>
+  <div class="sec"><h3>Failure modes</h3><ul><li>runner-agent 400 (missing tenant-id) / 422 (batch gate off, bad autoscaling metric) propagate back.</li><li>◌ A dead runner is still selectable — no heartbeat.</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('rs','src/run_scheduler/v2/services/runs/runner.py','services/runs/runner.py')}</li><li>${L('rs','src/run_scheduler/v2/services/runs/runner_client.py','services/runs/runner_client.py')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('rs-sched','RunScheduler')}${NP('rs-runner-client','RunnerClient')}${NP('ra-api','runner-agent API')}</p></div>`},
+ {g:'④',c:'seam',title:'Apply — runner-agent writes the CRD',role:'runner-agent resolves the operator type, applies the custom resource, and wires the route. Its job ends here.',
+  nodes:['ra-api','ra-res','ra-k8s','ra-router','k8s-crd','k8s-gw'],arrows:['ra-api->ra-res','ra-res->ra-k8s','ra-api->ra-router','ra-k8s->k8s-crd','ra-router->k8s-gw'],
+  b:`<div class="sec"><h3>What happens</h3><ul>
+    <li>Resolver (first CanHandle wins): tokens[] → <b>BatchRunner</b> · GPU-model image → <b>GpuRunner</b> · Dynamo stub · fallback <b>StandardRunner</b>.</li>
+    <li>Dynamic client applies the unstructured CRD; router stamps <code>/runs/{id}</code> + <code>/jobs/{id}</code> HTTPRoutes (prefix rewritten to <code>/</code>, field-manager <code>runner-agent-router</code>).</li>
+    <li>Stateless: all state lives in the CRDs.</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('ra','internal/operator/operator.go')}</li><li>${L('ra','internal/k8s/client.go')}</li><li>${L('ra','internal/router/router.go')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('ra-res','Operator resolver')}${NP('ra-k8s','K8s client')}${NP('ra-router','HTTPRoute router')}${NP('k8s-crd','Custom resources')}</p></div>`},
+ {g:'⑤',c:'ext',title:'Reconcile — operators run the pods',role:'Separate in-cluster controllers turn the spec into running containers.',
+  nodes:['k8s-crd','k8s-ops','k8s-pods'],arrows:['k8s-crd->k8s-ops','k8s-ops->k8s-pods'],
+  b:`<div class="sec"><h3>Who does what</h3><ul>
+    <li><b>batch operator</b> → BatchRunner (ns <code>batch-runner</code>).</li>
+    <li><b>GPU operator</b> → GpuRunner/GpuCache (ns <code>gpu-runner[-tenant]</code>), model pulled from the registry, weights warmed on a PVC.</li>
+    <li><b>standard operator</b> → StandardRunner (ns <code>standard-runner</code>), autoscaled.</li></ul></div>
+  <div class="sec"><h3>Note</h3><p>runner-agent is not involved from here on — restarts, scaling and pod lifecycle belong to these controllers. ⏸ The parked secrets-injection sidecar would join the pod at this stage.</p></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('k8s-ops','L1 operators')}${NP('k8s-pods','Job pods')}${NP('sidecar','Secrets sidecar (on hold)')}</p></div>`},
+ {g:'⑥',c:'rm',title:'Watch — run-monitor follows the pods',role:'Status comes from Kubernetes itself, not from run-scheduler.',
+  nodes:['k8s-pods','rm'],arrows:['k8s-pods->rm'],
+  b:`<div class="sec"><h3>How</h3><ul>
+    <li>SharedIndexInformer on pods (label-selected), indexed by run id.</li>
+    <li>Reads <code>acme.dev/run-callback-url</code> from pod annotations; cached per run; falls back to a cluster-local base URL.</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('rm','pkg/agent/pod_agent.go')}</li><li>${L('rm','pkg/agent/agent.go')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('rm','run-monitor')}${NP('k8s-pods','Job pods')}</p></div>`},
+ {g:'⑦',c:'rm',title:'Report — status lands back in job-api',role:'Envelopes settle the run state machine and derive the job status.',
+  nodes:['rm','ja-status','ja-run','ja-repl','ja-mq'],arrows:['rm->ja-status','ja-status->ja-run'],
+  b:`<div class="sec"><h3>Contract</h3><ul>
+    <li><b>POST</b> <code>/runs/{id}/status</code> (internal S2S) — camelCase envelope: <code>jobId, overallStatus{state, summary, lastUpdated}, podStatuses[]</code>; run id from the URL path.</li>
+    <li>WARMING → readiness_check task (network probe) → RUNNING; candidate/previous transitions advance the replacement machine (queue + cron rescue).</li></ul></div>
+  <div class="sec"><h3>Code</h3><ul><li>${L('ja','src/job_api/routes/runs.py')}</li><li>${L('ja','src/job_api/services/readiness_gate.py')}</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('ja-status','Status receiver')}${NP('ja-repl','Replacement engine')}${NP('ja-mq','Message queue · workers')}</p></div>`},
+ {g:'⑧',c:'ja',title:'Invoke — traffic reaches the job',role:'Callers hit the gateway route; the endpoint is resolved internally.',
+  nodes:['ui','k8s-gw','k8s-pods'],arrows:['ui->k8s-gw','k8s-gw->k8s-pods'],
+  b:`<div class="sec"><h3>How</h3><ul>
+    <li>The gateway <code>/runs/{id}</code> HTTPRoute (stamped in ④) forwards to the job Service with the prefix rewritten to <code>/</code>.</li>
+    <li>The internal <code>GET /jobs/{id}/endpointInfo</code> (used by the invocation proxy) resolves the current run's endpoint URL — API keys are never returned by it.</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('k8s-gw','Gateway route')}${NP('k8s-pods','Job pods')}</p></div>`},
+ {g:'◌',c:'plan',title:'Planned & on hold',role:'The fuchsia elements: agreed direction, not shipped.',
+  nodes:['rs-reg','ra-api','sidecar','ja-run'],arrows:['rs-reg->ra-api'],
+  b:`<div class="sec"><h3>Planned</h3><ul>
+    <li><b>Heartbeat</b> — run-scheduler → runner readiness polling (<code>/health/ready</code> exists; nothing calls it).</li>
+    <li><b>N runs per job</b> — same pool first; job-api activates the new active run.</li>
+    <li><b>Edge gateway</b> — allowed routes; expose runner/queue APIs publicly.</li>
+    <li><b>Shared auth helper</b> on every run-scheduler endpoint; more registry entries.</li></ul></div>
+  <div class="sec"><h3>On hold</h3><ul><li><b>⏸ Secrets-injection sidecar</b> — PoC done; runner-agent flag defaults false; <a class="ext" target="_blank" href="https://github.com/acme/standard-runner-operator/pull/42">standard-runner-operator#42</a> open.</li></ul></div>
+  <div class="sec"><h3>Boxes</h3><p>${NP('sidecar','Secrets sidecar')}${NP('rs-reg','Runner registry')}</p></div>`},
+];
+
+let activeStep=null;
+const adj={};edgeReg.forEach(e=>{(adj[e.f]=adj[e.f]||new Set()).add(e.key);(adj[e.t]=adj[e.t]||new Set()).add(e.key);});
+function clearHL(){Object.values(nodeEls).forEach(d=>d.classList.remove('dim','hl'));
+  edgeReg.forEach(e=>{e.path.classList.remove('dim');if(e.label)e.label.classList.remove('dim');});
+  document.querySelectorAll('.item.step.active').forEach(x=>x.classList.remove('active'));}
+function applyHL(nodeSet,edgeSet){Object.entries(nodeEls).forEach(([id,d])=>{d.classList.toggle('dim',!nodeSet.has(id));d.classList.toggle('hl',nodeSet.has(id));});
+  edgeReg.forEach(e=>{const on=edgeSet.has(e.key);e.path.classList.toggle('dim',!on);if(e.label)e.label.classList.toggle('dim',!on);});}
+function setStep(i){activeStep=i;const st=STEPS[i];clearHL();
+  applyHL(new Set(st.nodes),new Set(st.arrows));
+  const item=document.querySelector(`.item.step[data-step="${i}"]`);if(item)item.classList.add('active');
+  openStep(i);updateTour();}
+function exitTour(){activeStep=null;clearHL();updateTour();
+  drawer.classList.remove('on');scrim.classList.remove('on');
+  document.body.classList.remove('stepdrawer','tourview');fit();}
+function openStep(i){const st=STEPS[i];drawerMode='step';
+  document.getElementById('drepo').innerHTML=`<span class="dot" style="background:${C[st.c]}"></span>process · ${i+1} / ${STEPS.length}`;
+  document.getElementById('dtitle').textContent=st.g+' '+st.title;
+  document.getElementById('drole').textContent=st.role;
+  document.getElementById('dbody').innerHTML=st.b;
+  document.getElementById('dstep').textContent=(i+1)+' / '+STEPS.length;
+  document.getElementById('dprev').disabled=i===0;document.getElementById('dnext').disabled=i===STEPS.length-1;
+  document.body.classList.add('stepdrawer','tourview');fit();
+  drawer.classList.add('on');scrim.classList.remove('on');}
+function updateTour(){const on=activeStep!==null;
+  document.getElementById('tplay').style.display=on?'none':'';
+  ['tprev','tinfo','tnext','texit'].forEach(id=>document.getElementById(id).style.display=on?'':'none');
+  if(on)document.getElementById('tinfo').textContent=STEPS[activeStep].g+' '+STEPS[activeStep].title.split(' — ')[0]+' · '+(activeStep+1)+'/'+STEPS.length;}
+document.getElementById('tplay').onclick=()=>setStep(0);
+document.getElementById('tnext').onclick=()=>setStep(Math.min(STEPS.length-1,activeStep+1));
+document.getElementById('tprev').onclick=()=>setStep(Math.max(0,activeStep-1));
+document.getElementById('texit').onclick=exitTour;
+document.getElementById('dprev').onclick=()=>{if(activeStep>0)setStep(activeStep-1);};
+document.getElementById('dnext').onclick=()=>{if(activeStep<STEPS.length-1)setStep(activeStep+1);};
+document.addEventListener('keydown',e=>{if(activeStep===null)return;
+  if(e.key==='ArrowRight')document.getElementById('tnext').click();
+  if(e.key==='ArrowLeft')document.getElementById('tprev').click();});
+// strip items → steps
+document.addEventListener('click',e=>{const it=e.target.closest('.item.step');if(it)setStep(+it.dataset.step);});
+// arrow labels that belong to a step become clickable
+const stepByEdge={};STEPS.forEach((st,i)=>st.arrows.forEach(k=>{if(!(k in stepByEdge))stepByEdge[k]=i;}));
+edgeReg.forEach(e=>{if(e.label&&e.key in stepByEdge){e.label.classList.add('clickable');e.label.addEventListener('click',()=>setStep(stepByEdge[e.key]));}});
+// drawer cross-nav pills
+document.getElementById('dbody').addEventListener('click',e=>{const p=e.target.closest('[data-node]');if(p)openDrawer(p.dataset.node);});
+// hover tracing (only when no step active)
+function hoverNode(id,on){if(activeStep!==null)return;
+  if(!on){clearHL();return;}
+  const keys=adj[id]||new Set();const nodes=new Set([id]);
+  edgeReg.forEach(e=>{if(keys.has(e.key)){nodes.add(e.f);nodes.add(e.t);}});
+  applyHL(nodes,keys);}
+
+/* zoom */
+let scale=1;const spacer=document.createElement('div');spacer.style.cssText='position:absolute;left:0;top:0;pointer-events:none';
+document.getElementById('viewport').appendChild(spacer);
+function setScale(s){scale=Math.max(.4,Math.min(1.7,s));stage.style.transform=`scale(${scale})`;spacer.style.width=(STAGE_W*scale)+'px';spacer.style.height=(STAGE_H*scale)+'px';}
+function fit(){const tv=document.body.classList.contains('tourview');const vw=document.body.clientWidth-(tv?452:0)-24;setScale(Math.max(vw/STAGE_W,tv?.58:.75));}
+document.getElementById('zin').onclick=()=>setScale(scale+.1);
+document.getElementById('zout').onclick=()=>setScale(scale-.1);
+document.getElementById('zfit').onclick=fit;fit();
+
+/* header collapse + section nav */
+const headerEl=document.querySelector('header'), viewportEl=document.getElementById('viewport');
+function sizeViewport(){viewportEl.style.height=(window.innerHeight-headerEl.offsetHeight)+'px';}
+document.getElementById('hcollapse').onclick=function(){headerEl.classList.toggle('collapsed');
+  this.textContent=headerEl.classList.contains('collapsed')?'Expand ▼':'Collapse ▲';sizeViewport();};
+document.getElementById('secnav').addEventListener('click',e=>{const b=e.target.closest('button[data-jump]');if(!b)return;
+  const id=b.dataset.jump;
+  if(id==='top'){viewportEl.scrollTo({top:0,left:0,behavior:'smooth'});return;}
+  const target=document.getElementById(id);if(!target)return;
+  const er=target.getBoundingClientRect(),vr=viewportEl.getBoundingClientRect();
+  viewportEl.scrollTo({top:viewportEl.scrollTop+(er.top-vr.top)-14,behavior:'smooth'});});
+window.addEventListener('resize',sizeViewport);sizeViewport();
+</script>
+</body>
+</html>

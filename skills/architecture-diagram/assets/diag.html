@@ -1,0 +1,52 @@
+<!doctype html><html><head><meta charset="utf-8"><title>diag</title></head><body>
+<!-- DOM-measurement harness for arch-blueprint pages.
+     Usage: copy this file into the directory being served on :8799 (same-origin
+     requirement for iframe.contentDocument), then:
+       "$CHROME" --headless --disable-gpu --virtual-time-budget=5000 --dump-dom \
+         "http://localhost:8799/diag.html?t=<target>.html" | grep -o 'RESULT::[^<]*'
+     Result protocol: document.title = 'RESULT::' + JSON. ok:true means zero
+     overlaps deeper than 3px and zero clipped node text. -->
+<iframe id="f" style="width:2100px;height:1450px;border:0"></iframe>
+<script>
+const q=new URLSearchParams(location.search);
+const target=q.get('t')||'index.html';
+const f=document.getElementById('f');
+// Same-origin load (default convention: http://localhost:8799). Serve this file
+// from the same directory as the target so contentDocument is accessible.
+f.src=(location.protocol.indexOf('http')===0?location.origin:'http://localhost:8799')+'/'+target;
+const MAX=40, DEPTH=3;
+f.onload=()=>setTimeout(()=>{
+  const w=f.contentWindow, doc=f.contentDocument;
+  const out={target, overlaps:[], clipped:[], counts:{}};
+  try{
+    // Force scale 1 so measured rects equal authored layout px (template's fit() shrinks the stage).
+    if(typeof w.setScale==='function'){w.setScale(1);}
+    else{const st=doc.getElementById('stage'); if(st)st.style.transform='scale(1)';}
+    const SEL='.node,.wlabel,.ptitle,.psub,.subhead,.blabel,.notes';
+    SEL.split(',').forEach(s=>out.counts[s]=doc.querySelectorAll(s).length);
+    const els=[...doc.querySelectorAll(SEL)].filter(e=>{
+      const r=e.getBoundingClientRect(); return r.width>0&&r.height>0;});
+    const desc=e=>String(e.className).split(' ')[0]
+      +(e.dataset&&e.dataset.id?'#'+e.dataset.id:'')
+      +':'+(e.textContent||'').trim().replace(/\s+/g,' ').slice(0,34);
+    const rects=els.map(e=>e.getBoundingClientRect());
+    let total=0;
+    for(let i=0;i<els.length;i++)for(let j=i+1;j<els.length;j++){
+      if(els[i].contains(els[j])||els[j].contains(els[i]))continue; // parent/child touch is fine
+      const a=rects[i], b=rects[j];
+      const ox=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+      const oy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+      if(ox>DEPTH&&oy>DEPTH){total++;
+        if(out.overlaps.length<MAX)out.overlaps.push(
+          {a:desc(els[i]), b:desc(els[j]), ox:Math.round(ox), oy:Math.round(oy)});}}
+    out.totalOverlaps=total;
+    // Text clipping: node content taller/wider than the fixed box.
+    doc.querySelectorAll('.node').forEach(n=>{
+      if(n.scrollHeight>n.clientHeight+1||n.scrollWidth>n.clientWidth+1)
+        out.clipped.push({id:n.dataset.id||'?', sh:n.scrollHeight, ch:n.clientHeight,
+                          sw:n.scrollWidth, cw:n.clientWidth});});
+    out.ok=(total===0&&out.clipped.length===0);
+  }catch(err){out.error=String(err); out.ok=false;}
+  document.title='RESULT::'+JSON.stringify(out);
+},900);
+</script></body></html>
